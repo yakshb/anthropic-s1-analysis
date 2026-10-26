@@ -2,7 +2,7 @@
 
 An independent, figure-by-figure reading of Anthropic, PBC's Form S-1 (filed October 26, 2026, SEC CIK 2130357). It covers margins, compute efficiency, the economics of more than $800 billion of contracted compute, customer concentration, and how the filing distributes its risk disclosure.
 
-**Interactive report:** [`docs/index.html`](docs/index.html). Open it in a browser, or view the published copy on GitHub Pages once it is enabled (see [Publishing](#publishing-the-report)).
+**Interactive report:** https://yakshb.github.io/anthropic-s1-analysis/ (also in [`docs/index.html`](docs/index.html)).
 
 > This is an independent analysis of a public filing. It is not affiliated with or endorsed by Anthropic and is not investment advice.
 
@@ -85,7 +85,7 @@ A full run makes about 1,100 requests to TypeSafe's Jev (about 13,000 judgments,
 
 ## Publishing the report
 
-`docs/index.html` is a static page, so it can be served directly by GitHub Pages: **Settings → Pages → Deploy from a branch → `main` / `/docs`**. It is then available at `https://yakshb.github.io/anthropic-s1-analysis/`.
+`docs/index.html` is served by GitHub Pages from `main` / `/docs` at https://yakshb.github.io/anthropic-s1-analysis/. Every push to `main` republishes it, so rebuild with `s1_dashboard.py` before pushing.
 
 ## Contributing
 
@@ -96,6 +96,10 @@ Corrections and extensions are welcome.
 - **Changing assumptions?** Add or edit them in `ASSUMPTIONS` in `s1_economics.py` with a one-line reason. They flow into the report's appendix automatically.
 - **Never commit keys.** `.env.local` and every other `.env*` file except `.env.example` are git-ignored.
 - After any change, rebuild with `s1_economics.py` and `s1_dashboard.py` so `docs/index.html` and the CSVs stay in sync with the code.
+
+## License
+
+MIT, see [LICENSE](LICENSE). The S-1 text quoted in the report and datasets comes from a public SEC filing.
 
 ## Sources
 
