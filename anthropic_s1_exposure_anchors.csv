@@ -1,0 +1,19 @@
+theme,anchor,busd,x_liquidity
+compute_commitments,"Fixed or minimum purchase commitments at June 30, 2026 (Note 13)",265.6,2.02
+compute_commitments,"Minimum commitments added after December 31, 2025, per the audited subsequent-events note",417.0,3.17
+compute_commitments,"Minimum commitments added after June 30, 2026 (Note 17)",245.0,1.86
+compute_commitments,Short-term non-cancelable commitments added after June 30 (Note 17),21.0,0.16
+compute_commitments,"Broadcom equipment lease rent, excluding interest (MD&A)",161.2,1.22
+compute_commitments,"Additional TPU compute, estimated, not in the commitments table (MD&A, low end)",125.0,0.95
+csp_conflicts,"Minimum spend committed to Amazon, Google and Microsoft (MD&A)",269.4,2.05
+csp_conflicts,Amazon convertible notes outstanding (MD&A),6.2,0.05
+capital_access,"Cash, equivalents and short-term investments at June 30, 2026",131.70000000000002,1.0
+capital_access,Undrawn convertible-note capacity under the 2026 NPAs,77.0,0.58
+capital_access,"A&R revolving credit facility, undrawn",15.0,0.11
+capital_access,Minimum liquidity covenant from Q4 2026,5.0,0.04
+accounting_tax,"Fair value charge on notes, derivatives and SAFEs, H1 2026",72.4,0.55
+accounting_tax,Cumulative fair value charges in the accumulated deficit,113.2,0.86
+ip_litigation,Bartz settlement (approved July 2026),1.5,0.01
+ip_litigation,"Bartz amount still accrued at June 30, 2026",1.2,0.01
+talent,"RSUs granted after June 30, 2026, grant-date fair value",5.8,0.04
+governance,Donation-matching charge recognized in Q3 2026,2.0,0.02

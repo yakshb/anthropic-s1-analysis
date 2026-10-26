@@ -1,0 +1,16 @@
+key,value,label,why
+cor_compute_share_floor,0.9,"Compute share of cost of revenue, floor",The filing says 'substantially all' of cost of revenue is customer-serving compute; 90% is the floor used for the serving-compute range.
+u_obs,0.9,Serving utilization in H1 2026,"The filing says the company has operated compute-constrained, demand exceeding supply. Revenue per serving-compute dollar observed in H1 2026 is scaled up by this to get revenue per fully used dollar."
+train_end,0.5,Non-serving share of compute by the ramp year,H1 2026 non-serving share is derived from the filing (about 73%); where it settles as capacity scales is not disclosed.
+ramp_year,2030,Year the non-serving share reaches its end value,Assumption; linear glide from H1 2026.
+k_drift,0.0,Annual change in revenue per used serving-compute dollar,"Price cuts per release (Opus 5.5 −40% cost per task, Fable 5.1 −25%) are stated alongside 'preserving our margins'; 0% means efficiency offsets price."
+opex_pct,0.3514,"Non-compute cash operating costs, % of revenue","H1 2026, natural classification: personnel less stock compensation, sales/marketing/partnerships (incl. channel fees), other opex less non-cash charitable charges, over revenue."
+tax,0.21,Cash tax rate on positive operating profit,US federal statutory rate; NOLs and credits ignored (conservative).
+revolver_in_cash,False,Count the undrawn revolver as liquidity,The $15B revolver is undrawn; off by default.
+ramp_in,1.0,"Payment ramp-in, years from each agreement's start",Capacity arrives in tranches; the filing says expenses are recognized as compute becomes available. Calibrated so the ledger's H2 2026 is closer to the observed Q2 2026 compute run-rate; 0 = straight-line.
+rate_rev,0.1094,Discount rate on revenue net of variable costs and tax,Unlevered cost of capital: 10-year Treasury 5.00% (2026-10-23) + median unlevered beta 1.33 of ten listed AI peers × US equity risk premium 4.46%. Unlevered because the fixed payments are valued separately at a debt rate.
+rate_pay,0.0738,Discount rate on fixed compute payments,Anthropic's own incremental borrowing rate as disclosed: lease-liability-weighted average of the operating (7.5%) and finance (7.1%) lease discount rates in Note 7.
+rate_premium,0.0,Extra premium on the revenue-side rate,"Zero in the base case; use it to stress pre-IPO, concentration or model-obsolescence risk beyond what listed peers' betas capture."
+policy_share,0.06,Revenue from usage-policy violators removed from the calibration,The filing estimates 5–7% of 9M 2026 revenue came from customers violating usage policy or commercial terms and expects it to decline; the midpoint is taken out of revenue per serving dollar.
+loss_share,0.0,Share of revenue lost to customer churn or in-sourcing,Zero in the base case. The stress presets use the top-five share the filing gives (Q3 2026) to model the largest customers moving to their own or a competitor's models.
+loss_year,2028,Year the customer loss starts,Assumption; phased in over that year.

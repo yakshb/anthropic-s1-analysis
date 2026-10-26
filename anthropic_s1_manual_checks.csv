@@ -1,0 +1,22 @@
+item,expected,got,source,agrees
+risk factors extracted,88 headings in 6 groups,88 in 6,"S-1 Risk Factors, pp. 26-119",True
+first risk factor,develop the most advanced and capable AI models,Our success depends in large part on our ability to continue to develo,p. 26,True
+cash and short-term investments,$112.4B + $19.3B,$112.4B + $19.3B,MD&A Liquidity,True
+A&R revolver,"$15B, matures September 4, 2031, $5.0B minimum liquidity, $500M springing trigger","$15B, September 4, 2031, $5.0B, $500M",MD&A Revolving Credit Agreement,True
+letters of credit at June 30,$78M,$78M,MD&A,True
+Amazon notes outstanding,"$6,203M = $2,186M at $2.0928 + $4,017M at $5.0478; 12% cap","$6,203M = 2,186 at 2.0928 + 4,017 at 5.0478; 12%",MD&A Outstanding Notes table,True
+NPA capacity,$77B = Google $20B + Amazon $15B + Broadcom $42B,$77B = 20 + 15 + 42,MD&A Note Purchase Agreements table,True
+Broadcom NPA terms,9.00% PIK; 13.00% and 85% if revenue conditions fail; converts at 90% of VWAP; 150% on change of control,9.0%; 13.0% and 85%; 90%; 150%,MD&A Broadcom,True
+Google cap and concurrent placement,14.99% cap; $10.0B option at the IPO price,14.99%; $10.0B,MD&A Google,True
+AMD commitment,"$5.0B of Class N, first milestone 2027","$5.0B, 2027",MD&A AMD Agreement,True
+purchase commitments,"$265.6B at June 30, 2026; $54,559M table at Dec 31, 2025; ~$245B + ~$21B added after June 30; ~$417B added after Dec 31, 2025","$265.6B; $54,559M; $245B + $21B; $417B",Notes 13 and 17; FY2025 subsequent events,True
+Broadcom lease rent,$161.2B all leases; $125.2B for the 2026 Lease Arrangement,$161.2B; $125.2B,MD&A Infrastructure Equipment Leases; Risk Factors,True
+vendor commitments,"Microsoft 44.9, Google 114.5, Amazon 110.0, SpaceXAI 120.5, Nscale 44.6, Lambda 41.3, AMD >20.0","Microsoft 44.9, Google 114.5, Amazon 110.0, SpaceXAI 120.5, Nscale 44.6, Lambda 41.3, AMD 20.0",MD&A Infrastructure Service Arrangements,True
+TPU estimate,"$125.0B to $150.0B, not in the table",$125.0B to $150.0B,MD&A,True
+balance sheet,"convertible notes payable $108,566M; preferred $157,510M; accumulated deficit $132,902M; finance lease liabilities $443M; restricted cash $2,529M","$108,566M; $157,510M; $132,902M; $443M; $2,529M",F-5 and summary balance sheet data,True
+fair value charges,$72.4B in H1 2026; $113.2B cumulative of a $132.9B deficit,$72.4B; $113.2B of $132.9B,MD&A Liquidity,True
+H1 2026 results and cash flows,"revenue $16,286M; operating loss $(693)M; operating cash flow $3,929M; financing $110,774M","$16,286M; $-693M; $3,929M; $110,774M",Summary data; MD&A Cash Flows,True
+preferred rounds,"H $45.73B, G $23.45B, F $13.00B, E $3.57B, D $1.20B, C $0.45B","H $45.73B, G $23.45B, F $13.0B, E $3.57B, D $1.2B, C $0.45B",Related Person Transactions,True
+Bartz,"$1.5B settlement; $1.2B accrued at June 30, 2026",$1.5B; $1.2B,Note 13,True
+concentration and control,top five customers 25%; Class F 50.1% of votes; public benefit issuance 5%,25%; 50.1%; 5%,Risk Factors; Governance; MD&A,True
+Amazon roles,"investor, financing source, supplier, customer or channel, competitor all established","investor, financing_source, supplier, customer, distribution_channel, competitor",passages naming Amazon,True

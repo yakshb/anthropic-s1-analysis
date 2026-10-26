@@ -1,0 +1,13 @@
+kind,name,value,as_of,source,group,company,beta_levered,market_cap,total_debt,debt_to_equity,beta_unlevered
+risk_free,US 10-year Treasury yield,0.05,2026-10-23,FMP /stable/treasury-rates (US Treasury par curve),,,,,,,
+erp,US total equity risk premium,0.0446,undated in source; fetched 2026-10-26,"FMP /stable/market-risk-premium (country table, no as-of date)",,,,,,,
+peer,MSFT,,2026-06-30,FMP /stable/profile + balance-sheet-statement,AI platforms,Microsoft Corporation,1.099,3954845687754.0,128808300000.0,0.032569741064448876,1.0714319535760428
+peer,GOOGL,,2025-12-31,FMP /stable/profile + balance-sheet-statement,AI platforms,Alphabet Inc.,1.211,3858442281936.0,59291000000.0,0.01536656393114434,1.1964752859607375
+peer,AMZN,,2025-12-31,FMP /stable/profile + balance-sheet-statement,AI platforms,"Amazon.com, Inc.",1.456,2686759467000.0,152987000000.0,0.056941085303338766,1.3933234920647253
+peer,META,,2025-12-31,FMP /stable/profile + balance-sheet-statement,AI platforms,"Meta Platforms, Inc.",1.185,1606355476683.0,83897000000.0,0.05222816569420912,1.1380440182726197
+peer,ORCL,,2026-05-31,FMP /stable/profile + balance-sheet-statement,AI platforms,Oracle Corporation,1.77,381172181716.0,156189000000.0,0.4097597030739556,1.3371507194153271
+peer,PLTR,,2025-12-31,FMP /stable/profile + balance-sheet-statement,High-growth AI software,Palantir Technologies Inc.,1.602,457473176400.0,229338000.0,0.0005013146383898017,1.6013657973886384
+peer,SNOW,,2026-01-31,FMP /stable/profile + balance-sheet-statement,High-growth AI software,Snowflake Inc.,1.351,118170360000.0,2741114000.0,0.023196290508042797,1.3266883438915515
+peer,NOW,,2025-12-31,FMP /stable/profile + balance-sheet-statement,High-growth AI software,"ServiceNow, Inc.",0.99,163536291160.0,2403000000.0,0.014693986166342505,0.9786397065353653
+peer,DDOG,,2025-12-31,FMP /stable/profile + balance-sheet-statement,High-growth AI software,"Datadog, Inc.",1.512,100627178000.0,1535192000.0,0.015256236242658022,1.4939937499406224
+peer,CRWV,,2025-12-31,FMP /stable/profile + balance-sheet-statement,High-growth AI software,"CoreWeave, Inc. Class A Common Stock",7.322,30439303629.0,29822000000.0,0.9797201789987112,4.127444711482598

@@ -1,0 +1,9 @@
+check,value_busd,detail
+"Contracted commitments, A+B+C+D+E (incl. cancelable and conditional)",855.124,"265.6 + 2.1 + 321.4 + 245.0 + 21.0. The categories come from different notes and dates; that does not by itself rule out overlap, and amendments after June 30 may restate amounts already in A (see below)."
+Of which firm: excluding the cancelable SpaceXAI tail and the vendor-conditional Nscale and Lambda agreements,682.4966027397279,"855.1 less SpaceXAI after its notice period (93.1), Nscale (44.6) and Lambda's August agreement (34.9). Other amounts the filing calls 'subject to certain contractual conditions' cannot be separated and stay in."
+"Roll-forward Dec 31, 2025 → June 30, 2026",65.24099999999999,(A 265.6 + C 321.4) − (A 54.6 + C 50.2 at Dec 31 + 417.0 added to June 1) = net additions in June less H1 payments; not separately disclosed
+Named agreements dated before 6/30 vs category A,4.463257575756643,"Microsoft 44.9 + Google remaining 110.6 + Amazon remaining 108.2 + Lambda May/June 6.4 = 270.1 vs 265.6; a positive gap means some amounts (Google amended May–Aug, Microsoft amended Oct) sit in Note 17 instead"
+Named post-6/30 agreements vs category D,45.0,SpaceXAI 120.5 + Nscale 44.6 + Lambda Aug 34.9 = 200.0 of 245.0; SpaceXAI is assigned to D because category A has no room for it
+Broadcom not-yet-commenced leases inside category C,160.72299999999998,161.2 rent less 0.52 commenced = 160.7 of C 321.4
+Estimates excluded from the binding total (F),157.5,"TPU 125.0–150.0 midpoint, AMD > 20.0; the filing excludes both from its commitment figures"
+The earlier capital chart's stack,817.8,A + D + E + all Broadcom rent + TPU low end: double-counts Broadcom (inside C) and adds an estimate; omits the rest of C. Replaced by this ledger

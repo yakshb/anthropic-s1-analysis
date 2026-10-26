@@ -1,0 +1,16 @@
+# Secrets: never commit keys. Copy .env.example to .env.local and fill it in locally.
+.env
+.env.*
+!.env.example
+
+# Local caches and build byproducts
+edgar_cache/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.venv/
+venv/
+.DS_Store
+
+# Publishing copy of the page (same content as docs/index.html, without the document skeleton)
+anthropic_s1_dashboard_artifact.html
