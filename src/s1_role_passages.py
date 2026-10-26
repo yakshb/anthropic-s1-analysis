@@ -69,7 +69,7 @@ def ask(state, questions, attempts=3):
         return r
 
 
-# --- the filing, sectioned by page exactly as in the notebook
+# --- the filing, sectioned by page exactly as in s1_jev_reading.py
 CIK = "2130357"
 subs = json.loads(edgar_get(f"{SEC_BASE}/submissions/CIK{int(CIK):010d}.json"))
 recent = pd.DataFrame(subs["filings"]["recent"])

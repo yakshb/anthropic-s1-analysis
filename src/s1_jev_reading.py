@@ -1,94 +1,62 @@
-"""Generate jev_anthropic_s1.ipynb: Anthropic's S-1 (filed 2026-10-26) read with Jev for (1) risk-factor weighting and (2) financing structure."""
-import nbformat as nbf
-from pathlib import Path
-import re as _re
+"""Jev's reading of Anthropic's S-1: writes every file in data/jev/ that Part II of the report uses.
 
-nb = nbf.v4.new_notebook()
-cells = []
-md = lambda s: cells.append(nbf.v4.new_markdown_cell(_re.sub(r"(?<!\\)\$", r"\\$", s.strip("\n"))))
-code = lambda s: cells.append(nbf.v4.new_code_cell(s.strip("\n")))
+Steps (each is a section below):
+  1. Fetch the S-1 from EDGAR; recover pages, sections and 1,500-character passages; cut the 88 risk factors from the HTML.
+  2. Type each risk factor with Jev (theme, specificity, already happened, consequence, control, mitigation, multi-role
+     counterparty), twice, flagging theme flips.
+  3. Weight each theme by its share of risk-factor words.
+  4. Ask Jev, for every passage outside Risk Factors, which themes it states a concrete fact about.
+  5. Match each risk heading to CoreWeave's March 2025 S-1 (BM25 candidates, Jev choice).
+  6. Compare words with facts per theme on two evidence bases (whole filing, operating sections only).
+  7. Type financing instruments and compute agreements; map counterparty roles.
+  8. Write the datasets, the author-read checks, and run_metrics.csv (requests, judgments, latency and cost per step).
 
-md(r"""
-# Jev × EDGAR: Anthropic's S-1 — what the risk factors weigh, and how the company is financed
-
-Anthropic, PBC filed its Form S-1 on October 26, 2026 (CIK 2130357, proposed ticker ANT). This notebook reads the
-registration statement the way the earlier CoreWeave notebooks read credit agreements and 10-Qs: code recovers the
-document's structure, Jev supplies the judgments that need reading, and arithmetic stays in pandas. It asks two
-questions.
-
-**1. Which risks does the filing name, and does it weight them in proportion to its own facts?** The Risk Factors
-section is about 95 pages. Each risk factor is extracted from the HTML (the bold-italic headings are the unit),
-typed by Jev (theme, specificity, whether the risk has already materialized, the strength of the consequence
-language, who controls it), and then weighed three ways: by the share of risk-factor words it receives, by how much
-concrete evidence the rest of the filing carries for that theme (Jev reads every passage of the Summary, MD&A,
-Business, Governance, Related-Party and Financial Statement sections for theme-bearing facts), and by whether a
-near-identical heading appears in a peer S-1 (CoreWeave, March 2025), which separates industry boilerplate from
-Anthropic-specific disclosure. "Overweighted" here means more words than facts; "underweighted" means more facts
-than words. It is a measure of emphasis against the document's own evidence, not a probability of loss.
-
-**2. What does the financing structure look like?** The Liquidity section, the notes to the financial statements and
-the related-party section are split into instrument blocks. Figures are pulled by regex from the specific sentences
-and tables that state them; Jev types each instrument (what it is, drawn or contingent, cash- or share-settled,
-secured or not, tied to compute or not) and each compute commitment (fixed regardless of usage, fees as delivered,
-cancelable how). A counterparty role map asks, for every passage that names Amazon, Google, Microsoft, Broadcom, AMD
-and the GPU-cloud vendors, which of seven roles the passage establishes: investor, financing source, supplier,
-lessor, customer, distribution channel, competitor.
-
-**Three things to know before reading the results**
-
-* The S-1 is the first public filing and the price range is not yet set: the capitalization, dilution and
-  contractual-obligations tables carry blanks. Everything here comes from the figures the filing does state, with
-  the quoted sentence next to each one. There is no secondary source in this notebook.
-* The weighting method is relative. A theme can be "proportionate" and still be the most important risk in the
-  document; the index only says whether the words and the facts line up.
-* Jev's confidence is a property of its probability distribution, not measured accuracy. Author-read checks sit in a
-  separate table at the end, and every number in the generated summary is produced by the run.
-
-Requirements: `TYPESAFE_API_KEY` (environment, `.env.local`, or Colab secret) and optionally `EDGAR_IDENTITY`.
-""")
-
-md("## 0. Setup")
-code(r"""
-import importlib, subprocess, sys
-
-for pkg, mod in [("typesafe-sdk", "typesafe_sdk"), ("pandas", "pandas"), ("requests", "requests"),
-                 ("matplotlib", "matplotlib"), ("python-dotenv", "dotenv"), ("beautifulsoup4", "bs4"), ("lxml", "lxml")]:
-    if importlib.util.find_spec(mod) is None:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
-""")
-code(r"""
+Requires TYPESAFE_API_KEY (in .env.local or the environment) and, for SEC requests, EDGAR_IDENTITY.
+A full run makes about 1,100 Jev requests (about 13,000 judgments, roughly $0.11).
+Run from the repository root:  python src/s1_jev_reading.py
+"""
 import os
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dotenv import load_dotenv
 
-for env_file in (Path(".env.local"), Path("../.env.local")):
-    if env_file.exists():
-        load_dotenv(env_file)
-        break
+from paths import CACHE as _CACHE, DATA_JEV, ENV_FILE
+
+if ENV_FILE.exists():
+    load_dotenv(ENV_FILE)
 
 
 def secret(name: str, default: str | None = None) -> str:
-    value = os.environ.get(name)
+    value = os.environ.get(name) or default
     if not value:
-        try:
-            from google.colab import userdata  # type: ignore
-
-            value = userdata.get(name)
-        except Exception:
-            value = None
-    if not value and default is not None:
-        return default
-    if not value:
-        raise RuntimeError(f"Set {name} in the environment, in .env.local, or as a Colab secret")
+        raise RuntimeError(f"Set {name} in .env.local (see .env.example) or in the environment")
     return value
 
 
 TYPESAFE_API_KEY = secret("TYPESAFE_API_KEY")
 EDGAR_IDENTITY = secret("EDGAR_IDENTITY", default="Example user@example.com")
-print("keys loaded; EDGAR identity:", EDGAR_IDENTITY)
-""")
-code(r"""
+OUT = DATA_JEV
+
+
+def display(obj):
+    """Prints tables compactly to the console."""
+    if hasattr(obj, "to_string"):
+        print(obj.to_string(max_rows=20, max_cols=14, max_colwidth=60))
+    else:
+        print(obj)
+
+
+def Markdown(text):  # noqa: N802 - strips Markdown dollar escapes from the summary text
+    return re.sub(r"\\\$", "$", text)
+
+
+import re
+
+# ====================================================================================================
+# 0. Setup
+# ====================================================================================================
 import json
 import math
 import re
@@ -99,11 +67,12 @@ from collections import Counter, OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 
 import matplotlib
+
+matplotlib.use("Agg")  # charts render off-screen; the report draws its own
 import matplotlib.pyplot as plt
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
-from IPython.display import Markdown, display
 from typesafe_sdk import Choice, Noul, NoulCriteria, Score, TypeSafeClient
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
@@ -119,9 +88,6 @@ plt.rcParams.update({
     "xtick.color": "#898781", "ytick.color": "#898781", "axes.prop_cycle": matplotlib.cycler(color=PALETTE),
 })
 
-# Outputs go to data/jev/ when the notebook runs from the repository's notebooks/ folder, else next to the notebook (e.g. Colab).
-OUT = Path("../data/jev") if Path("../data").is_dir() else Path(".")
-OUT.mkdir(parents=True, exist_ok=True)
 
 PRICE_PER_MTOK_INPUT = 0.042
 ts = TypeSafeClient(api_key=TYPESAFE_API_KEY, timeout=90.0)
@@ -152,7 +118,7 @@ def ask(state, questions, section: str, attempts: int = 3):
 
 SEC_BASE, SEC_ARCHIVES = "https://data.sec.gov", "https://www.sec.gov/Archives/edgar/data"
 HEADERS = {"User-Agent": EDGAR_IDENTITY, "Accept": "application/json"}
-CACHE = next((p for p in (Path("edgar_cache"), Path("../edgar_cache")) if p.exists()), Path("edgar_cache"))  # shared cache at the project root
+CACHE = _CACHE
 CACHE.mkdir(exist_ok=True)
 _rate_lock, _last_call = threading.Lock(), [0.0]
 
@@ -189,19 +155,10 @@ def tokens(s):
 
 
 print("available models:", [m.name for m in ts.models.list().models])
-""")
 
-md(r"""
-## 1. The filing: sections by page, passages, and the 88 risk factors
-
-EDGAR's submissions index gives the S-1 and its primary document. The prospectus prints a page number at the foot of
-every page followed by the running "Table of Contents" header, so pages are recoverable from the text, and the table
-of contents maps page ranges to sections. Passages of about 1,500 characters are cut inside each section and keep
-their page. The risk factors themselves come from the HTML rather than the text: each risk factor heading is a
-bold-italic paragraph and each group heading is bold 12-point, which is a more reliable boundary than any regex over
-sentences. A check compares the words recovered through the headings with the words in the Risk Factors page range.
-""")
-code(r"""
+# ====================================================================================================
+# 1. The filing: sections by page, passages, and the 88 risk factors
+# ====================================================================================================
 CIK = "2130357"
 subs = json.loads(edgar_get(f"{SEC_BASE}/submissions/CIK{int(CIK):010d}.json"))
 recent = pd.DataFrame(subs["filings"]["recent"])
@@ -215,8 +172,7 @@ raw_html = edgar_get(S1_URL)
 text = html_to_text(raw_html)
 lines = text.split("\n")
 print(f"{len(raw_html)/1e6:.1f} MB of HTML -> {len(text):,} characters, {len(lines):,} lines")
-""")
-code(r"""
+
 # --- pages: a footer page number immediately followed by the running "Table of Contents" header
 marks = [(i, lines[i].strip()) for i in range(len(lines) - 1)
          if re.fullmatch(r"(F-)?\d{1,3}|II-\d", lines[i].strip()) and lines[i + 1].strip() == "Table of Contents"]
@@ -270,8 +226,7 @@ page_df = pd.DataFrame([{"page": p, "section": section_of(p), "chars": len(t)} f
 sec_summary = page_df.groupby("section", sort=False).agg(pages=("page", "size"), first_page=("page", "first"), chars=("chars", "sum"))
 display(sec_summary)
 print(f"{len(pages)} pages recovered; {len(toc)} table-of-contents entries")
-""")
-code(r"""
+
 PASSAGES = []
 SECTION_TEXT = {}
 for sec in sec_summary.index:
@@ -293,8 +248,7 @@ for sec in sec_summary.index:
         j += 1
 pass_df = pd.DataFrame(PASSAGES)
 print(f"{len(PASSAGES):,} passages;", dict(pass_df.section.value_counts()))
-""")
-code(r"""
+
 # --- risk factors from the HTML: bold-italic paragraphs are risk headings, bold 12pt paragraphs are group headings
 soup = BeautifulSoup(raw_html, "lxml")
 style = lambda tag: tag.get("style", "") if tag else ""
@@ -351,32 +305,10 @@ if risks.page.isna().any():
     flag("risk extraction", f"{int(risks.page.isna().sum())} headings not located on a page")
 display(risks.groupby("group_short", sort=False).agg(factors=("words", "size"), words=("words", "sum"), median_words=("words", "median"), first_page=("page", "first")))
 display(risks[["rid", "group_short", "page", "words", "dollar_figures", "percent_figures", "heading"]].head(12))
-""")
 
-md(r"""
-## 2. Typing each risk factor with Jev
-
-One request per risk factor, two passes. The state is the group, the heading and the body (the first 12,000
-characters; the median factor is about 540 words and the longest about 4,000). The questions are the ones a reader
-would answer in the margin:
-
-* **theme** — a Choice over sixteen named themes plus "other". The descriptions name concrete situations rather than
-  labels, because Jev reads literally.
-* **specificity** — a four-level Score from language that could appear in any technology filing up to
-  Anthropic-specific figures and dates next to named counterparties. This is the boilerplate measure.
-* **materialized** — a Noul: does the text say the risk has already happened or is happening (past or present
-  tense about Anthropic), not merely that it could.
-* **consequence** — a three-level Score on the strength of the stated consequence, from "could adversely affect"
-  through "material adverse effect" to existential wording (acceleration, inability to continue, loss of the
-  entire investment).
-* **control** — a Choice: largely within Anthropic's control, largely external, or mixed.
-* **mitigation** and **conflict of interest** — Nouls: does the text describe steps Anthropic is taking; does it
-  concern a counterparty that is simultaneously an investor, supplier, lessor, channel or competitor.
-
-Dollar and percent figure counts are regex, not Jev, since counting is a jagged edge. The second pass repeats the
-theme and specificity questions; a theme that flips between passes is flagged and the first pass is kept.
-""")
-code(r"""
+# ====================================================================================================
+# 2. Typing each risk factor with Jev
+# ====================================================================================================
 THEMES = OrderedDict([
     ("compute_supply", "Securing enough compute: chips, data centers, power, memory, supply chain concentration, export restrictions on hardware, dependence on a few suppliers"),
     ("compute_commitments", "Fixed or minimum compute and infrastructure commitments, equipment leases and capital expenditures that must be paid regardless of usage, and the risk of committing to too much or too little capacity"),
@@ -451,24 +383,15 @@ for rid, r in risks[~risks.theme_stable].iterrows():
 print(f"theme stable across passes on {int(risks.theme_stable.sum())} of {len(risks)}; specificity differs by more than 0.5 on {int((risks.specificity - risks.specificity_pass2).abs().gt(0.5).sum())}")
 print("control:", dict(risks.control.value_counts()), "| theme p of the chosen option: median", risks.theme_p.median())
 display(risks[["group_short", "page", "words", "theme", "theme_p", "specificity", "materialized", "consequence", "control", "mitigation", "conflict", "heading"]].head(20))
-""")
-code(r"""
+
 low = risks[risks.theme_p < 0.5]
 print(f"{len(low)} risk factors where the chosen theme holds less than half the probability (a second theme competes):")
 for rid, r in low.iterrows():
     print(f"  {rid} {r.theme} ({r.theme_p}) vs {r.theme_pass2} | {r.heading[:110]}")
-""")
 
-md(r"""
-## 3. Disclosure weight by theme
-
-Weight as the filing itself assigns it: how many words each theme receives, how many factors, where the first
-factor on the theme sits in the running order (page 26 is the front of the queue), how specific the writing is, how
-much of it describes something that has already happened, and how strong the consequence language is. The
-prospectus summary of this S-1 does not carry a bulleted risk summary, so there is no "summary inclusion" signal;
-position in the running order stands in for it.
-""")
-code(r"""
+# ====================================================================================================
+# 3. Disclosure weight by theme
+# ====================================================================================================
 TH = risks[risks.theme != "other"]
 themes = TH.groupby("theme").agg(factors=("words", "size"), words=("words", "sum"), first_position=("page", "min"), first_order=("words", lambda s: int(min(int(x[1:]) for x in s.index))),
                                  specificity=("specificity", "mean"), share_materialized=("materialized", lambda s: (s >= 0.5).mean()),
@@ -491,29 +414,11 @@ for y, (w, n) in enumerate(zip(themes.loc[order, "words"], themes.loc[order, "fa
 ax.set_xlabel("words in the Risk Factors section (shade: mean specificity, darker = more Anthropic-specific)")
 ax.set_title("Where the risk-factor words go")
 plt.tight_layout()
-plt.show()
-""")
+plt.close("all")
 
-md(r"""
-## 4. The document's own evidence, theme by theme
-
-Two measures independent of the Risk Factors section.
-
-**Evidence passages.** Every passage of the Prospectus Summary, MD&A, Business, Governance, Related Person
-Transactions, Description of Capital Stock, Shares Eligible for Future Sale, Use of Proceeds, Capitalization and the
-Financial Statements goes to Jev with sixteen Nouls, one per theme: does the passage state a concrete fact about
-Anthropic (a figure, a named agreement or counterparty, a dated event, a lawsuit, a financial statement item) that
-bears on the theme. A passage counts as evidence for a theme at probability 0.7 or above. The count per theme,
-normalized, is the evidence share. The two strongest passages per theme are shown with their page so the reader can
-see what the count is made of.
-
-**Exposure anchors.** A short table of figures pulled by regex from the sentences that state them: commitments,
-cash, the fair value charge, the settlement, the voting structure. Each anchor is mapped to a theme by the author
-and expressed as a multiple of liquidity (cash plus short-term investments at June 30, 2026). Anchors overlap
-(the Broadcom rent and the post-quarter commitments are different notes measuring different things), so they are
-shown as a list, not summed.
-""")
-code(r"""
+# ====================================================================================================
+# 4. The document's own evidence, theme by theme
+# ====================================================================================================
 EVIDENCE_SECTIONS = ["PROSPECTUS SUMMARY", "USE OF PROCEEDS", "CAPITALIZATION", "MD&A", "BUSINESS", "GOVERNANCE", "RELATED PERSON TRANSACTIONS",
                      "DESCRIPTION OF CAPITAL STOCK", "SHARES ELIGIBLE FOR FUTURE SALE", "FINANCIAL STATEMENTS", "PART II"]
 ev_pass = [p for p in PASSAGES if p["section"] in EVIDENCE_SECTIONS and len(p["text"]) > 300]
@@ -558,9 +463,8 @@ for i in range(by_section.shape[0]):
             ax.text(j, i, str(v), ha="center", va="center", fontsize=7, color="white" if v > by_section.values.max() * 0.6 else "#0b0b0b")
 ax.set_title(f"Evidence passages per theme (Jev Noul >= {EV_T}) by section")
 plt.tight_layout()
-plt.show()
-""")
-code(r"""
+plt.close("all")
+
 top_ev = []
 for t in EV_THEMES:
     best = ev.sort_values(t, ascending=False).head(2)
@@ -568,8 +472,7 @@ for t in EV_THEMES:
         top_ev.append({"theme": t, "p": r[t], "section": r.section, "page": r.page, "passage": r.text[:260] + "…"})
 top_ev = pd.DataFrame(top_ev)
 display(top_ev)
-""")
-code(r"""
+
 # --- exposure anchors: figures the filing states, pulled from the sentence that states them
 FS = flat(SECTION_TEXT["FINANCIAL STATEMENTS"]); MDA = flat(SECTION_TEXT["MD&A"]); RF = flat(SECTION_TEXT["RISK FACTORS"]); GOV = flat(SECTION_TEXT["GOVERNANCE"]); PS = flat(SECTION_TEXT["PROSPECTUS SUMMARY"])
 REL = flat(SECTION_TEXT["RELATED PERSON TRANSACTIONS"])
@@ -667,19 +570,10 @@ display(anchors)
 display(pct_rows)
 print(f"liquidity at June 30, 2026: ${liq:.1f}B | H1 2026 revenue ${A['revenue_h1_2026_musd']:,.0f}m, operating loss ${-A['operating_loss_h1_2026_musd']:,.0f}m, operating cash flow ${A['op_cf_h1_2026_musd']:,.0f}m, financing cash flow ${A['fin_cf_h1_2026_musd']:,.0f}m")
 themes["largest_anchor_x_liquidity"] = anchors.groupby("theme").x_liquidity.max().reindex(themes.index)
-""")
 
-md(r"""
-## 5. Peer check: which headings also appear in CoreWeave's S-1
-
-CoreWeave's March 2025 S-1 is the nearest listed-company analogue for an AI-infrastructure-heavy IPO and is drafted
-in the same genre. Its risk headings are extracted the same way (bold-italic paragraphs inside the Risk Factors
-section). For each Anthropic heading, BM25 proposes the ten closest CoreWeave headings and Jev picks the one that
-describes the same underlying risk, or "none". A match at probability 0.5 or above marks the Anthropic factor as
-shared with the peer. Shared is not the same as unimportant; it is the same as not distinctive. The word share of
-each theme that is peer-shared is the third weighting signal.
-""")
-code(r"""
+# ====================================================================================================
+# 5. Peer check: which headings also appear in CoreWeave's S-1
+# ====================================================================================================
 def all_filings(cik):
     s = json.loads(edgar_get(f"{SEC_BASE}/submissions/CIK{int(cik):010d}.json"))
     frames = [pd.DataFrame(s["filings"]["recent"])]
@@ -743,18 +637,10 @@ print(f"{int(risks.peer_shared.sum())} of {len(risks)} Anthropic risk factors ha
 display(risks[["theme", "words", "peer_shared", "peer_p", "heading", "peer_heading"]].sort_values("peer_p", ascending=False).head(12))
 print("\nthe least peer-like factors (no counterpart, highest specificity):")
 display(risks[~risks.peer_shared].sort_values("specificity", ascending=False)[["theme", "page", "words", "specificity", "materialized", "heading"]].head(12))
-""")
 
-md(r"""
-## 6. Overweighted or underweighted: words against facts
-
-For each theme: the share of risk-factor words (section 3) against the share of evidence passages the rest of the
-filing carries (section 4). The ratio of the two is the weighting index. Above 1.5 the theme gets more words than
-the document's own facts would suggest; below 0.67 it gets fewer. The peer-shared share and the boilerplate share
-say what kind of words they are, and the largest anchor says how big the exposure is in dollars relative to
-liquidity. Themes are then ranked within each verdict by the size of the gap.
-""")
-code(r"""
+# ====================================================================================================
+# 6. Overweighted or underweighted: words against facts
+# ====================================================================================================
 themes["weight_index"] = (themes.word_share / themes.evidence_share.replace(0, float("nan"))).round(2)
 
 
@@ -788,9 +674,8 @@ ax.set_ylabel("share of Risk Factors words (%)")
 ax.set_title("Words vs facts by theme (orange: overweighted, green: underweighted; bubble = peer-shared share)")
 ax.set_xlim(0, lim); ax.set_ylim(0, lim)
 plt.tight_layout()
-plt.show()
-""")
-code(r"""
+plt.close("all")
+
 # Sensitivity 1: evidence from the operating sections only (Summary, MD&A, Business). The Description of Capital Stock and
 # the financial-statement notes document share classes, equity accounting and governance mechanics at length, which
 # inflates the evidence count for stock_market, governance and accounting_tax without saying anything about exposure.
@@ -807,20 +692,10 @@ themes["weight_index_by_count"] = (themes.factor_share / themes.evidence_share.r
 agree = ((themes.weight_index >= 1.5) == (themes.weight_index_by_count >= 1.5)) & ((themes.weight_index <= 1 / 1.5) == (themes.weight_index_by_count <= 1 / 1.5))
 print(f"verdict unchanged with operating-section evidence only: {int((themes.verdict == themes.verdict_operating).sum())} of {len(themes)} themes; unchanged when weighting by factor count: {int(agree.sum())} of {len(themes)}")
 display(themes[["word_share", "evidence_share", "weight_index", "verdict", "evidence_share_operating", "weight_index_operating", "verdict_operating", "robust_verdict", "weight_index_by_count"]].sort_values("weight_index", ascending=False).round({"word_share": 3, "evidence_share": 3, "evidence_share_operating": 3}))
-""")
 
-md(r"""
-## 7. The financing structure
-
-The S-1 describes a company financed almost entirely with equity and equity-like paper, with the cash obligations
-sitting in compute contracts rather than debt. The Liquidity section of the MD&A is split at its own-line headings
-into instrument blocks. For each block, regex pulls the figures from the sentences and tables that state them and
-Jev types the instrument: what it is, whether it is drawn, committed or conditional, how it settles, what secures
-it, and whether its availability or use is tied to compute. The compute commitments in "Infrastructure Service
-Arrangements" are split by agreement and typed the same way (fixed regardless of usage, fees as capacity is
-delivered, cancelable how). Balance sheet and cash flow figures come from the statements' own rows.
-""")
-code(r"""
+# ====================================================================================================
+# 7. The financing structure
+# ====================================================================================================
 mda_lines = SECTION_TEXT["MD&A"].split("\n")
 own = lambda name: [i for i, l in enumerate(mda_lines) if l.strip() == name]
 liq_end = own("Quantitative and Qualitative Disclosures about Market Risk")[-1]
@@ -842,8 +717,7 @@ for b in BLOCKS:
         b["block"] = f"{b['block']} ({seen[b['block']]})"
 B = {b["block"]: b["text"] for b in BLOCKS}
 display(pd.DataFrame([{"block": b["block"], "chars": len(b["text"]), "opens": b["text"][:110] + "…"} for b in BLOCKS]))
-""")
-code(r"""
+
 def fig_candidates(text):
     out = []
     for m in re.finditer(r"\$\s?([\d,]+(?:\.\d+)?)\s*(billion|million)?", text):
@@ -924,8 +798,7 @@ with ThreadPoolExecutor(6) as pool:
 display(fin[["instrument", "amount_busd", "type", "status", "settlement", "security", "counterparty", "compute_linked", "conditional", "converts_to_equity"]])
 extra_cols = [c for c in fin.columns if c not in {"instrument", "block", "amount", "amount_unit", "amount_busd", "type", "status", "settlement", "security", "counterparty", "compute_linked", "conditional", "converts_to_equity"} and not c.endswith("_conf")]
 display(fin.set_index("instrument")[extra_cols].T.dropna(how="all"))
-""")
-code(r"""
+
 # --- compute commitments by agreement, from the "Infrastructure Service Arrangements" block
 isa = B["Infrastructure Service Arrangements"]
 paras_isa = [p.strip() for p in re.split(r"(?=(?:In [A-Z][a-z]+(?:, [A-Z][a-z]+)*(?: and [A-Z][a-z]+)? 20\d\d\s*,\s*we entered|Between [A-Z][a-z]+ and [A-Z][a-z]+ 20\d\d\s*,\s*we entered|Under the Hardware Supply Agreement with AMD))", isa) if len(p.strip()) > 200]
@@ -962,8 +835,7 @@ for r in commits[~commits.jev_vs_regex_agree].itertuples():
     flag(f"commitment:{r.vendor}", f"Jev picked {r.amount_text} where the regex read {r.regex_amount_busd}; regex value kept in the chart")
 display(commits[["vendor", "amount_text", "amount_p", "regex_amount_busd", "jev_vs_regex_agree", "basis", "basis_conf", "cancelability", "true_up", "vendor_dependency"]])
 print(f"agreements parsed: {len(commits)}; sum of regex amounts ${sum(v for v in VENDOR_COMMIT.values() if v):.1f}B (not additive with the Note 13 total: different dates, and estimates are included)")
-""")
-code(r"""
+
 # --- preferred stock rounds from the related-person section, balance sheet rows from the statements
 pref = []
 for m in re.finditer(r"From ([A-Z][a-z]+ \d{4}) to ([A-Z][a-z]+ \d{4}), we sold an aggregate of ([\d,]+) shares of our Series ([A-H])(?:-1|-1 and [A-Z]-\d)?[^.]*?at a purchase price of \$([\d.]+) per share, for an aggregate purchase price of\s*\$([\d,\s]+?)\s*\.", REL):
@@ -977,42 +849,10 @@ bs = {"cash_musd": (row_values(FS, "Cash and cash equivalents", 3, after=r"\s*\$
       "total_liabilities_musd": grab(r"Total liabilities \$ ([\d,]+)", PS), "total_assets_musd": grab(r"Total assets \$ ([\d,]+)", PS)}
 display(pd.Series(bs, name="June 30, 2026 ($m)").to_frame())
 print(f"preferred rounds C through H raised ${pref.gross_busd.sum():.1f}B gross; Series H alone ${pref[pref.series == 'H'].gross_busd.sum():.1f}B; convertible notes carried at fair value ${bs['convertible_notes_payable_musd']/1000:.1f}B against ${A['amazon_notes_busd']}B of principal")
-""")
-code(r"""
-# --- capital sources against committed spend, in billions; every bar is a figure the filing states, nothing is netted
-src = [("Cash + short-term investments (6/30/26)", liq, PALETTE[0]), ("A&R revolver, undrawn", fin.set_index("instrument").loc["A&R senior secured revolving credit facility", "amount_busd"], PALETTE[0]),
-       ("Google 2026 NPA", fin.set_index("instrument").loc["Google 2026 NPA (convertible note / share facility)", "amount_busd"], PALETTE[6]), ("Amazon 2026 NPA", fin.set_index("instrument").loc["Amazon 2026 NPA (convertible note / share facility)", "amount_busd"], PALETTE[6]),
-       ("Broadcom NPA (rent financing only)", fin.set_index("instrument").loc["Broadcom Infrastructure Partner 2026 NPA", "amount_busd"], PALETTE[6]), ("AMD Class N commitment", fin.set_index("instrument").loc["AMD Class N purchase commitment", "amount_busd"], PALETTE[3])]
-use = [("Minimum purchase commitments (6/30/26, Note 13)", A["min_commitments_jun30_busd"], PALETTE[1]), ("Added after 6/30 (Note 17)", A["post_quarter_commitments_busd"], PALETTE[1]),
-       ("Short-term, added after 6/30", A["post_quarter_short_term_busd"], PALETTE[1]), ("Broadcom lease rent ex-interest (Note 7 leases)", A["broadcom_rent_busd"], PALETTE[4]),
-       ("TPU estimate, low end (not in table)", A["tpu_estimate_low_busd"], PALETTE[7])]
-fig, ax = plt.subplots(figsize=(8.5, 3.4))
-for label, items in (("sources", src), ("committed spend", use)):
-    left = 0
-    for name, v, c in items:
-        if v:
-            ax.barh(label, v, left=left, color=c, edgecolor="#fcfcfb")
-            if v > 25:
-                ax.text(left + v / 2, label, f"{name}\n${v:,.0f}B", ha="center", va="center", fontsize=6.5, color="white")
-            left += v
-ax.set_xlabel("$ billions as stated in the S-1 (bars are not netted; categories come from different notes and may overlap)")
-ax.set_title("Capital sources available against compute spend committed")
-plt.tight_layout()
-plt.show()
-tot_src = sum(v for _, v, _ in src if v); tot_use = sum(v for _, v, _ in use if v)
-print(f"sources shown ${tot_src:,.0f}B (of which ${liq:,.0f}B is cash and ${sum(v for n, v, _ in src if 'NPA' in n or 'AMD' in n):,.0f}B is contingent share-settled capacity); committed spend shown ${tot_use:,.0f}B")
-""")
 
-md(r"""
-### Counterparty roles
-
-Every passage in the filing that names one of nine counterparties, up to 30 per name ranked by how often the name
-appears, goes to Jev with seven Nouls: does the passage establish that the counterparty is an investor or
-noteholder, a financing source or guarantor, a compute or hardware supplier, a lessor, a customer, a distribution
-channel, or a competitor. A role counts when any passage reaches 0.8; the number of supporting passages is the
-depth of the record. This is the factual basis for the conflict-of-interest theme.
-""")
-code(r"""
+# ====================================================================================================
+# Counterparty roles
+# ====================================================================================================
 ROLE_Q = {
     "investor": "holds Anthropic's preferred stock, common stock or convertible notes, or has invested money in Anthropic",
     "financing_source": "provides or commits to provide financing to Anthropic: a note purchase facility, a share purchase commitment, a credit facility, a guarantee of lease obligations",
@@ -1059,21 +899,20 @@ for i in range(mat.shape[0]):
             ax.text(j, i, str(mat[i, j]), ha="center", va="center", fontsize=7, color="white")
 ax.set_title(f"Roles each counterparty holds toward Anthropic (cells: passages at Noul >= {ROLE_T})")
 plt.tight_layout()
-plt.show()
+plt.close("all")
 best_quotes = roles_raw.melt(id_vars=["counterparty", "section", "page", "text"], value_vars=list(ROLE_Q), var_name="role", value_name="p")
 best_quotes = best_quotes[best_quotes.p >= ROLE_T].sort_values("p", ascending=False).drop_duplicates(["counterparty", "role"])
 display(best_quotes.sort_values(["counterparty", "role"])[["counterparty", "role", "p", "section", "page", "text"]].reset_index(drop=True))
-""")
 
-md(r"""
-## 8. Run metrics, generated summary, review flags, and manual checks
-""")
-code(r"""
+# ====================================================================================================
+# 8. Run metrics, generated summary, review flags, and manual checks
+# ====================================================================================================
 log_df = pd.DataFrame(LOG)
 summary = log_df.groupby("section").agg(calls=("latency_ms", "size"), questions=("questions", "sum"), median_ms=("latency_ms", "median"),
                                         p95_ms=("latency_ms", lambda s: s.quantile(0.95)), input_tokens=("input_tokens", "sum"), cost_usd=("cost_usd", "sum"))
 summary.loc["TOTAL"] = [len(log_df), log_df.questions.sum(), log_df.latency_ms.median(), log_df.latency_ms.quantile(0.95), log_df.input_tokens.sum(), log_df.cost_usd.sum()]
 display(summary.round({"median_ms": 0, "p95_ms": 0, "cost_usd": 4}))
+summary.rename_axis("section").reset_index().to_csv(OUT / "run_metrics.csv", index=False)
 
 F = fin.set_index("instrument")
 MANUAL_CHECKS = [
@@ -1143,88 +982,4 @@ generated = f'''
 '''
 display(Markdown(re.sub(r"(?<!\\)\$", r"\\$", generated)))
 print("wrote risk_factors.csv, risk_themes.csv, evidence_hits.csv, theme_evidence_passages.csv, exposure_anchors.csv, peer_matches.csv, financing.csv, vendor_commitments.csv, counterparty_roles.csv, manual_checks.csv")
-""")
 
-md(r"""
-## Takeaways
-
-Qualitative on purpose; the numbers are in the generated summary and the CSVs.
-
-**On the first question: which risks, and are they weighted in proportion.** Five themes are overweighted under
-both evidence bases: regulation, competition, AI safety and misuse, copyright and IP litigation, and cybersecurity
-and privacy. They take about two fifths of the risk-factor words and the rest of the filing carries few concrete
-facts about them. That is partly the nature of externally driven risks, which a registrant can warn about but not
-document, and partly genre: the regulation, IP and cyber factors are mostly shared with CoreWeave's S-1 heading for
-heading. Safety is the exception that proves the point. It is the single largest theme by words, the least
-peer-shared of all, and most of it describes things that have already happened (the company's own commitments,
-its political exposure, the suits already filed). Anthropic is using its risk factors to state a position as much
-as to warn.
-
-Three themes are underweighted under both bases, and they are the ones a credit or equity analyst would start
-with. The multi-role counterparty problem gets one risk factor of about 750 words, around one percent of the
-section, while the document's own record shows Amazon and Google each in six of seven roles toward Anthropic
-(investor, financing source, supplier, customer, distribution channel, competitor) and the three cloud providers
-holding minimum spend commitments of about twice the company's liquidity. Access to capital gets four factors
-against the largest evidence footprint in the filing: minimum commitments at June 30 of roughly twice cash and
-investments, a half-year in which financing inflows were about thirty times operating cash flow, and a liquidity
-covenant that starts in the fourth quarter. Talent is third, with the most generic writing in the section (every
-talent factor has a CoreWeave twin) set against post-quarter equity grants and a donation-matching charge measured
-in billions. The compute commitment theme sits between: proportionate by words against facts, but it is the most
-specific theme in the section, it carries the largest dollar anchor (post-quarter minimum commitments above three
-times liquidity), and it gets two factors. By the dollar lens rather than the word lens it is light.
-
-Six themes change verdict depending on whether the Description of Capital Stock and the financial statement
-notes count as evidence. Governance and the stock-ownership risks look underweighted only because those sections
-document share classes and equity accounting at length; on the operating sections alone they are proportionate.
-Compute supply, model execution and customer revenue look overweighted only on the full document; the MD&A and
-Business sections carry them in proportion. The notebook reports both and treats only the agreements as findings.
-
-Two numbers describe the section as a whole: about two thirds of the words have a counterpart in a peer S-1 from
-eighteen months earlier, and about two thirds of the words sit in factors that describe something that has already
-occurred. The second is the more useful reading of this document: the risk factors are where the filing discloses
-its history, including the settlement, the restricted cash, the conflicts, and the compute shortfalls.
-
-**On the second question: the financing structure.** Anthropic is financed with equity and equity-like paper, and
-its cash obligations sit in compute contracts rather than in debt. Preferred stock is carried at well over
-$150 billion, with the Series G and H rounds of 2026 accounting for most of what was raised since inception. The
-only funded instrument that resembles debt is about $6 billion of non-interest-bearing Amazon rollover notes,
-carried at fair value near $109 billion; the $72 billion fair value charge in the first half is the accounting
-shadow of a rising valuation on those notes, not cash, and the notes convert at the offering subject to Amazon's
-ownership cap. The $15 billion revolver is undrawn, secured, and carries a $5 billion minimum liquidity covenant
-and a springing maturity; its security and most negative covenants fall away on an investment-grade rating. The
-$77 billion of note purchase capacity and the $5 billion AMD commitment are conditional and share-settled: Amazon
-in $5 billion tranches on compute milestones under its own commercial agreements, Google reducible by a concurrent
-placement at the IPO price, Broadcom usable only to pay rent on Broadcom's own equipment at 9% paid in kind, with
-penalty terms if revenue growth falls below thresholds and a 150% payout on a change of control. Six of the seven
-instruments typed can end in shares; five are tied to compute.
-
-The commitments are where the leverage lives. Minimum purchase commitments rose from about $55 billion at the end
-of 2025 to about $266 billion at June 30, 2026, with roughly $245 billion more signed after the quarter, on top of
-about $161 billion of equipment lease rent to Broadcom and an estimated $125 to $150 billion of further TPU
-capacity outside the table. By agreement, the Microsoft, Google and Amazon commitments are fixed regardless of
-usage (two with explicit true-ups); the SpaceXAI arrangement is cancelable on notice after early 2027; the Nscale
-and Lambda agreements accrue fees only as capacity is delivered and depend on those vendors securing their own
-financing or facility leases. The circularity the conflicts risk factor describes in general terms is specific in
-the tables: the parties supplying the compute are the parties financing it, and in two cases the financing draws
-are triggered by milestones under the same compute agreements.
-
-**Where Jev earned its place.** Typing 88 risk factors on seven dimensions in two passes with no theme flips;
-reading 649 passages against sixteen themes, about ten thousand judgments, in a few minutes for a few cents;
-matching headings to a peer filing; typing seven instruments and seven commitments from their own paragraphs; and
-establishing counterparty roles passage by passage. Regex pulled the figures, pandas built the index, and every
-author-read check agreed with the run.
-
-**Caveats.** The weighting index compares words with the count of fact-bearing passages, not with dollars, and the
-sections that document equity mechanics inflate it, which is why the operating-sections sensitivity is reported
-and only agreements are called findings. The evidence judgment is Jev's and a passage can be counted for a theme on
-a fact that is incidental to it; the full matrix is saved for review. Theme assignment is one label per factor
-and several factors span two. The peer check uses one peer and one vintage. The S-1 is a first filing with the
-price range, capitalization and contractual-obligations tables blank; the first amendment will fill them and is
-the next primary source.
-""")
-
-nb["cells"] = cells
-nb["metadata"]["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).resolve().parents[1] / "notebooks" / "jev_anthropic_s1.ipynb"
-nbf.write(nb, out)
-print("wrote", out, "with", len(cells), "cells")

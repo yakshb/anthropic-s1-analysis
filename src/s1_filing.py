@@ -83,7 +83,7 @@ class Filing:
         self._build_pages()
         self._build_passages()
 
-    # ---- pages and sections, identical to the notebook
+    # ---- pages and sections, identical to s1_jev_reading.py
     def _build_pages(self):
         lines = self.text.split("\n")
         marks = [(i, lines[i].strip()) for i in range(len(lines) - 1) if re.fullmatch(r"(F-)?\d{1,3}|II-\d", lines[i].strip()) and lines[i + 1].strip() == "Table of Contents"]
@@ -186,7 +186,7 @@ class Filing:
         quote = (block[:block.find(" ", 160)] + " … " + m.group(0)) if m.start() > 200 else block[: m.end()]
         return vals, quote, self.page_of(m.group(0)[:60]) if self.page_of(m.group(0)[:60]) != "?" else self.page_of(anchor)
 
-    # ---- risk factors from the HTML, as in the notebook
+    # ---- risk factors from the HTML, as in s1_jev_reading.py
     @lru_cache(maxsize=1)
     def risk_factors(self):
         soup = BeautifulSoup(self.raw, "lxml")

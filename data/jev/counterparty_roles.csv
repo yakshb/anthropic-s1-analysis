@@ -1,10 +1,10 @@
 counterparty,investor,financing_source,supplier,lessor,customer,distribution_channel,competitor,roles_established,passages_read
-Amazon,11,10,6,0,1,3,1,6,47
-Google,5,9,9,0,1,2,3,6,39
-Microsoft,0,0,4,0,1,1,1,4,13
+Amazon,10,7,6,0,1,4,1,6,47
+Google,5,9,8,0,1,1,3,6,39
+Microsoft,0,0,4,0,0,1,1,3,13
 Broadcom,0,3,4,3,0,0,0,3,20
-AMD,0,2,2,0,0,0,0,2,11
+AMD,0,2,1,0,0,0,0,2,11
 NVIDIA,0,0,2,0,0,0,0,1,9
-SpaceXAI,0,0,0,0,0,0,0,0,2
+SpaceXAI,0,0,1,0,0,0,0,1,2
 Nscale,0,0,0,0,0,0,0,0,2
 Lambda,0,0,1,0,0,0,0,1,3

@@ -24,21 +24,20 @@ Every figure in the report links to the sentence in the filing that states it.
 docs/index.html            the interactive report, served by GitHub Pages
 data/model/                figures extracted from the filing and the outputs of the economic model
 data/jev/                  Jev's reading of the filing: risk factors, evidence, peers, agreements, roles
-notebooks/                 the Jev notebook (jev_anthropic_s1.ipynb) and its Colab copy
-src/                       Python: filing parser, economics, discount rates, report builder, checks
+src/                       Python: the Jev reading, filing parser, economics, discount rates, report builder, checks
 web/                       the report's stylesheet and scripts, including the JavaScript model
 ```
 
 | `src/` | Does |
 |---|---|
 | `paths.py` | Every folder the project reads or writes; scripts run from any directory |
+| `s1_jev_reading.py` | Jev's reading of the filing (risk factors, evidence, peer matching, agreements, financing, roles); writes `data/jev/` and `data/jev/run_metrics.csv` |
 | `s1_filing.py` | Fetches and parses the S-1; every figure is returned with its quote and page |
 | `s1_economics.py` | Margin bridge, compute efficiency, contract ledger, payment calendar, reverse DCF; writes `data/model/` |
 | `s1_hurdle.py` | Discount-rate inputs (Treasury, equity risk premium, peer betas), cached to `data/model/hurdle_inputs.csv` |
-| `s1_dashboard.py` | Builds `docs/index.html` from `data/`, `web/` and the notebook |
+| `s1_dashboard.py` | Builds `docs/index.html` from `data/` and `web/` |
 | `s1_check_model.py` | Checks `web/s1_model.js` against the Python model (needs Node.js) |
 | `s1_role_passages.py` | A small Jev pass behind the counterparty role map; writes `data/jev/counterparty_role_passages.csv` |
-| `build_notebook.py` | Generates `notebooks/jev_anthropic_s1.ipynb` |
 
 ### Datasets
 
@@ -51,7 +50,7 @@ web/                       the report's stylesheet and scripts, including the Ja
 | `data/model/utilization_scenarios.csv`, `model_assumptions.csv`, `hurdle_inputs.csv` | Reverse-DCF scenarios, every assumption with its reason, and the discount-rate inputs |
 | `data/jev/risk_factors.csv`, `risk_themes.csv`, `evidence_hits.csv`, `theme_evidence_passages.csv`, `peer_matches.csv` | Jev's typing of the 88 risk factors, the words-versus-facts index, and the evidence behind it |
 | `data/jev/financing.csv`, `vendor_commitments.csv`, `counterparty_roles.csv`, `counterparty_role_passages.csv` | Jev's reading of financing instruments, compute agreements and counterparty roles |
-| `data/jev/manual_checks.csv` | Author-read checks against the filing |
+| `data/jev/manual_checks.csv`, `run_metrics.csv` | Author-read checks against the filing; Jev requests, judgments, latency and cost per step |
 
 ## Working with the files
 
@@ -71,13 +70,15 @@ The first run downloads the S-1 from SEC EDGAR into `edgar_cache/`, which is git
 
 **Refreshing market inputs:** set `FMP_API_KEY` in `.env.local`, then run `.venv/bin/python src/s1_hurdle.py --refresh` before `src/s1_economics.py`.
 
-**Re-running the Jev analysis:** set `TYPESAFE_API_KEY` in `.env.local`, then open `notebooks/jev_anthropic_s1.ipynb` in Jupyter. It writes to `data/jev/`. Or run it headless:
+**Re-running the Jev analysis:** set `TYPESAFE_API_KEY` in `.env.local`, then run the full pipeline:
 
 ```bash
-cd notebooks && ../.venv/bin/jupyter nbconvert --to notebook --execute --inplace jev_anthropic_s1.ipynb
+.venv/bin/python src/s1_jev_reading.py   # Jev's reading of the filing; writes data/jev/
+.venv/bin/python src/s1_economics.py     # figures and the economic model; writes data/model/
+.venv/bin/python src/s1_dashboard.py     # writes docs/index.html
 ```
 
-A full run makes about 1,100 requests to TypeSafe's Jev (about 13,000 judgments, roughly $0.11). In Colab, add `TYPESAFE_API_KEY` under Secrets and run `notebooks/jev_anthropic_s1_colab.ipynb`. In Colab its outputs land next to the notebook.
+`s1_jev_reading.py` makes about 1,100 requests to TypeSafe's Jev: about 13,000 judgments, roughly $0.11, a few minutes. `src/s1_role_passages.py` refreshes the counterparty role map separately; it makes about 160 requests.
 
 ## Method in brief
 

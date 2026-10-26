@@ -2,7 +2,7 @@
 
 Part I answers four questions from the filing's own figures: the margin bridge, compute efficiency, the economics of the
 contracted compute (ledger, payment calendar, discount rates, reverse DCF with live assumptions, stress tests) and
-customer concentration. Part II explains how TypeSafe's Jev was used to read the filing and shows what the filing
+customer concentration. Part II (from src/s1_jev_reading.py) explains how TypeSafe's Jev was used to read the filing and shows what the filing
 emphasizes. Every filing figure carries its quote; click a chart element or a table row to read the source.
 
 Writes two files: docs/index.html (a complete document; open it locally or serve it with GitHub Pages) and
@@ -15,14 +15,13 @@ import math
 import re
 from pathlib import Path
 
-import nbformat
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 
 import s1_economics as E
-from paths import BUILD, DATA_JEV, DOCS, NOTEBOOKS, WEB
+from paths import BUILD, DATA_JEV, DOCS, WEB
 from s1_filing import filing
 
 HERE = Path(__file__).resolve().parent
@@ -46,7 +45,7 @@ def src(sid, title, meta, *texts):
 for k, f in E.FACTS.items():
     src(f"fact:{k}", f.label or k, f"{f.section} · p. {f.page} · value {f.value} {f.unit}", f.quote)
 
-# =================================================================== notebook outputs (Jev disclosure analysis)
+# =================================================================== Jev outputs (src/s1_jev_reading.py)
 themes = pd.read_csv(DATA_JEV / "risk_themes.csv", index_col=0)
 risks = pd.read_csv(DATA_JEV / "risk_factors.csv")
 ev = pd.read_csv(DATA_JEV / "evidence_hits.csv", index_col=0)
@@ -61,18 +60,10 @@ ROLES = ["investor", "financing_source", "supplier", "lessor", "customer", "dist
 SECTIONS = [c for c in ["PROSPECTUS SUMMARY", "USE OF PROCEEDS", "CAPITALIZATION", "MD&A", "BUSINESS", "GOVERNANCE", "RELATED PERSON TRANSACTIONS",
                         "DESCRIPTION OF CAPITAL STOCK", "SHARES ELIGIBLE FOR FUTURE SALE", "FINANCIAL STATEMENTS", "PART II"] if c in set(ev.section)]
 
-# per-stage Jev statistics, read from the executed notebook's run-metrics table
-nb = nbformat.read(NOTEBOOKS / "jev_anthropic_s1.ipynb", as_version=4)
-STAGES = []
-for c in nb.cells:
-    for o in c.get("outputs", []):
-        t = o.get("data", {}).get("text/plain", "") if o.get("output_type") in ("display_data", "execute_result") else ""
-        if "risk typing pass 1" in t:
-            for line in t.splitlines():
-                m = re.match(r"^(\d [a-z ]+?\d?|TOTAL)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)$", line.strip())
-                if m:
-                    STAGES.append({"stage": m.group(1).strip(), "requests": int(float(m.group(2))), "judgments": int(float(m.group(3))), "median_ms": float(m.group(4)), "cost": float(m.group(7))})
-assert STAGES and STAGES[-1]["stage"] == "TOTAL", "could not read the notebook's run-metrics table"
+# per-stage Jev statistics, written by src/s1_jev_reading.py
+_rm = pd.read_csv(DATA_JEV / "run_metrics.csv")
+STAGES = [{"stage": r.section, "requests": int(r.calls), "judgments": int(r.questions), "median_ms": float(r.median_ms), "cost": float(r.cost_usd)} for r in _rm.itertuples()]
+assert STAGES and STAGES[-1]["stage"] == "TOTAL", "run_metrics.csv has no TOTAL row; re-run src/s1_jev_reading.py"
 JEV_TOTAL = STAGES[-1]
 ROLE_RUN = {"requests": len(role_pass), "judgments": len(role_pass) * len(ROLES)}
 STAGE_TEXT = {
@@ -345,7 +336,7 @@ xc_rows = "".join(f'<tr data-src="agreement:{x.vendor}"><td>{x.vendor}</td><td>{
 XC_TABLE = f'<div class="tablewrap"><table class="t"><thead><tr><th>Agreement</th><th>Ledger treatment (section 3)</th><th>Jev: payment basis</th><th>Jev: cancelability</th><th class="num">Jev: true-up p</th><th class="num">Jev: vendor-dependency p</th><th>Check</th></tr></thead><tbody>{xc_rows}</tbody></table></div>'
 stage_rows = "".join(f'<tr><td>{esc(STAGE_TEXT[s["stage"]][0])}</td><td>{esc(STAGE_TEXT[s["stage"]][1])}</td><td class="num">{s["requests"]:,}</td><td class="num">{s["judgments"]:,}</td><td class="num">{s["median_ms"]:.0f}</td><td class="num">${s["cost"]:.4f}</td></tr>' for s in STAGES if s["stage"] in STAGE_TEXT)
 stage_rows += f'<tr><td>Counterparty role map, deeper pass (dashboard)</td><td>Seven yes/no role questions over up to 60 passages per counterparty, aliases included</td><td class="num">{ROLE_RUN["requests"]}</td><td class="num">{ROLE_RUN["judgments"]:,}</td><td class="num">–</td><td class="num">&lt; $0.01</td></tr>'
-stage_rows += f'<tr class="total"><td>Notebook total</td><td></td><td class="num">{JEV_TOTAL["requests"]:,}</td><td class="num">{JEV_TOTAL["judgments"]:,}</td><td class="num">{JEV_TOTAL["median_ms"]:.0f}</td><td class="num">${JEV_TOTAL["cost"]:.4f}</td></tr>'
+stage_rows += f'<tr class="total"><td>Total (s1_jev_reading.py)</td><td></td><td class="num">{JEV_TOTAL["requests"]:,}</td><td class="num">{JEV_TOTAL["judgments"]:,}</td><td class="num">{JEV_TOTAL["median_ms"]:.0f}</td><td class="num">${JEV_TOTAL["cost"]:.4f}</td></tr>'
 STAGE_TABLE = f'<div class="tablewrap"><table class="t"><thead><tr><th>Step</th><th>What Jev answered</th><th class="num">Requests</th><th class="num">Judgments</th><th class="num">Median ms</th><th class="num">Cost</th></tr></thead><tbody>{stage_rows}</tbody></table></div>'
 H_ = E.HURDLE
 peer_rows = "".join(f'<tr><td>{x.name}</td><td>{esc(x.company)}</td><td>{x.group}</td><td class="num">{x.beta_levered:.2f}</td><td class="num">{x.debt_to_equity:.2f}</td><td class="num">{x.beta_unlevered:.2f}</td></tr>' for x in H_["peers"].itertuples())
