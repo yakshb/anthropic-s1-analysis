@@ -10,13 +10,13 @@ An independent, figure-by-figure reading of Anthropic, PBC's [Form S-1](https://
 
 | Question | Finding |
 |---|---|
-| **Gross margin** | Accounting gross margin was **85.4%** in H1 2026, but cost of revenue covers serving compute only. Charging all compute, training included, as cost of goods gives **45.1%**. After channel-partner fees it is about **28%**, and the operating margin was **−4.3%**. FY2025's operating margin was **−175.8%**, including the $1.5B Bartz settlement. |
-| **Compute efficiency** | Revenue per compute dollar rose from **$0.57** (Q2 2025) to **$2.08** (Q2 2026), a 3.7× gain. About half of the 15× revenue growth came with more compute. The gains arrived in steps after model releases. The marginal return on new compute fell from Q1 to Q2 2026: $6.09 of revenue per added compute dollar, then $3.14. |
-| **Contracted compute** | Firm compute commitments total about **$682B**. The **$855B** upper bound adds deals that can be cancelled or that depend on the vendor's financing, and may double-count contracts amended after June 30. Press reports on draft prospectuses put the figure between $600B and $750B. If revenue grows only as fast as demand, it must compound about **44% a year** from the $46B Q2 2026 run-rate to carry the firm commitments, or about **69% a year** if every contracted deal runs. Discount rates are 10.9% on revenue and 7.4% on payments. |
-| **Customers** | Customers spending $100K+ a year were **74%** of H1 2026 revenue, and about **250** customers spend $10M+. The top five customers' share fell from **36%** (Q1 2026) to **21%** (Q3 2026). Losing that 21% from 2028 raises the demand growth needed on firm commitments to about **73% a year**. |
-| **Disclosure emphasis** | Risk factors spend the most words, relative to the filing's own facts, on regulation, competition, AI safety, IP litigation and cybersecurity. They spend the least on access to capital, supplier conflicts of interest, and talent. |
+| **Gross margin** | The reported figures imply an **85.4%** accounting gross margin for H1 2026. Cost of revenue is predominantly serving compute, plus some personnel and overhead; training sits in R&D. Counting all compute as cost of goods gives **45.1%**. Subtracting the disclosed channel-fee floor leaves at most about **28.5%**, a constructed measure. The operating margin was **−4.3%**; FY2025's was **−175.8%**, including the $1.5B Bartz settlement. |
+| **Compute efficiency** | Revenue per compute dollar rose from **$0.57** (Q2 2025) to **$2.08** (Q2 2026), a 3.7× gain. About half of the 15× revenue growth came with more compute. The gains arrived in steps after model releases; the timing does not prove the releases caused them. Incremental revenue per compute-expense dollar fell from **6.09** in Q1 2026 to **3.14** in Q2 2026. |
+| **Contracted compute** | The base-case ledger, reconstructed from four notes, includes about **$682B** of firm commitments. The **$855B** upper scenario adds deals that can be cancelled or that depend on the vendor's financing, and may double-count contracts amended after June 30. Press reports on draft prospectuses put the figure between $600B and $750B. Under the base-case assumptions (90% utilization, revenue growing with demand), the model requires about **44% a year** demand growth from the $46B Q2 2026 run-rate, or about **69% a year** in the upper scenario. At 70% utilization the base case needs about **62%**. Discount rates are 10.9% on revenue and 7.4% on payments. |
+| **Customers** | Customers spending $100K+ a year were **74%** of H1 2026 revenue, and about **250** customers spend $10M+. The top five customers' share fell from **36%** (Q1 2026) to **21%** (Q3 2026). In the model, losing that 21% from 2028 raises the demand growth needed on the base case to about **73% a year**. |
+| **Disclosure emphasis** | This measures disclosure emphasis, not the economic importance of a risk. Risk factors spend the most words, relative to the filing's own facts, on regulation, competition, AI safety, IP litigation and cybersecurity. They spend the least on access to capital, supplier conflicts of interest, and talent. |
 
-Every figure in the report links to the sentence in the filing that states it.
+Facts from the filing and conclusions of the model are labeled separately. Every figure in the report links to the sentence in the filing that states it.
 
 ## What is in this repository
 
@@ -83,13 +83,15 @@ The first run downloads the S-1 from SEC EDGAR into `edgar_cache/`, which is git
 ## Method in brief
 
 - **Figures** are extracted from the filing by pattern-matching, and each keeps the sentence and page that state it. All arithmetic is in code.
-- **Judgments that need reading** are made by TypeSafe's Jev. These cover which theme a passage supports, how an agreement can be cancelled, and which role a counterparty plays. Jev returns typed answers with probabilities, so every threshold and count can be inspected and re-run.
+- **Judgments that need reading** are made by TypeSafe's Jev. These cover which theme a passage supports, how an agreement can be cancelled, and which role a counterparty plays. Jev returns typed answers with probabilities, so every threshold and count can be inspected and re-run. The probabilities are the model's confidence, not a measured accuracy. The main pass made 13,026 judgments across 1,073 requests, with median request latency of 90 ms and about $0.11 in API cost.
 - **The reverse DCF** treats compute payments as debt-like and discounts them at the filing's own lease rate. Revenue is discounted at an unlevered cost of capital built from listed peers. The model solves for the demand growth and the price-efficiency at which NPV reaches zero.
 - **Limitations** are listed in the report's Appendix A. In particular, the filing gives no physical capacity units, leaves its own aggregate commitment figures blank, and does not split training compute from other R&D. Assumptions are listed in Appendix B and `data/model/model_assumptions.csv`.
 
 ## Contributing
 
-Corrections and extensions are welcome.
+Corrections and extensions are welcome. A good first step: open the report, lower utilization from 90% to 70%, and watch the growth hurdle move from 44% to 62%. Then try your own assumptions.
+
+- **Wanted:** alternative payment schedules and model-obsolescence assumptions.
 
 - **Found a wrong figure?** Open an issue with the figure, the page of the S-1, and the sentence that states it. Every extracted value is in `data/model/filing_facts.csv` with its quote.
 - **Changing the model?** Keep `web/s1_model.js` and `model()` in `src/s1_economics.py` in step, and run `src/s1_check_model.py` before opening a pull request.

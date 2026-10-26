@@ -275,37 +275,39 @@ sparse = [n for n in NAMES if nread.loc[n] <= 3]
 
 FINDINGS = [
     ("Gross margin", f"{B['accounting_gm']:.1%} accounting, {B['compute_margin_all_workloads']:.1%} with all compute as cost of goods",
-     f"Cost of revenue covers serving compute only. Charging every H1 2026 compute dollar, training included, as cost of goods gives {B['compute_margin_all_workloads']:.1%}. "
-     f"After channel-partner fees it is about {ch_after:.0%}, and the operating margin is {B['operating_margin']:.1%}.", "margin"),
+     f"The reported figures imply an {B['accounting_gm']:.1%} accounting gross margin. Cost of revenue is predominantly serving compute, plus some personnel and overhead; training sits in R&D. "
+     f"Charging every H1 2026 compute dollar as cost of goods gives {B['compute_margin_all_workloads']:.1%}. Subtracting the disclosed channel-fee floor leaves at most about {ch_after:.1%}, a constructed measure rather than a reported margin. "
+     f"The operating margin is {B['operating_margin']:.1%}.", "margin"),
     ("Compute efficiency", f"Revenue per compute dollar up {q5.rev_per_compute / q1.rev_per_compute:.1f}× in a year",
      f"From ${q1.rev_per_compute:.2f} in Q2 2025 to ${q5.rev_per_compute:.2f} in Q2 2026. About half of the {q5.revenue / q1.revenue:.0f}× revenue growth came with more compute. "
-     "The gains arrived in steps after model releases. The marginal return on new compute fell from Q1 to Q2 2026.", "efficiency"),
-    ("Contracted compute", f"${firm:,.0f}B firm, up to ${upper:,.0f}B; demand must grow about {g90.demand_growth_for_both:.0%} a year",
-     f"Firm compute commitments total about ${firm:,.0f}B. The ${upper:,.0f}B upper bound adds deals that can be cancelled or depend on the vendor, and may double-count amended contracts. "
-     f"Press reports on draft prospectuses put the figure between $600B and $750B. If revenue grows only as fast as demand, it must compound about {g90.demand_growth_for_both:.0%} a year from the ${E.OBS['q2_run_rate']:.0f}B Q2 2026 run-rate "
-     f"to carry the firm commitments, or about {g90F.demand_growth_for_both:.0%} if every contracted deal runs.", "dcf"),
+     "The gains arrived in steps that followed model releases; the timing does not prove the releases caused them. Incremental revenue per compute-expense dollar fell from Q1 to Q2 2026.", "efficiency"),
+    ("Contracted compute", f"Modeled: about {g90.demand_growth_for_both:.0%} a year demand growth to carry a ${firm:,.0f}B base-case ledger",
+     f"The base-case ledger rebuilt from the notes includes about ${firm:,.0f}B of commitments; some unidentified conditions and possible amendment overlaps remain. "
+     f"An upper scenario within the ledger's scope, ${upper:,.0f}B, adds deals that can be cancelled or depend on the vendor; estimated spending outside the filing's figures is excluded. "
+     f"Press reports on draft prospectuses put the figure between $600B and $750B. Under the base-case assumptions, the model requires about {g90.demand_growth_for_both:.0%} annual demand growth from the ${E.OBS['q2_run_rate']:.0f}B Q2 2026 run-rate, "
+     f"or about {g90F.demand_growth_for_both:.0%} in the upper scenario.", "dcf"),
     ("Customers", f"{v('rev_100k_share_h1_26'):.0f}% of revenue from $100K+ customers; top five down to {E.TOP5_Q3:.0%}",
      f"About {v('cust_10m_sep26'):.0f} customers spend $10M+ a year. The top five fell from {1 - v('outside_top5_q1_26') / 100:.0%} of revenue in Q1 2026 to {E.TOP5_Q3:.0%} in Q3. "
-     f"Losing the top five's revenue from 2028 raises the demand growth needed to about {g90L.demand_growth_for_both:.0%} a year.", "customers"),
+     f"In the model, losing the top five's revenue from 2028 raises the demand growth required to about {g90L.demand_growth_for_both:.0%} a year.", "customers"),
     ("What the filing emphasizes", f"Risk factors lean on {listj(over[:3])}",
      f"The text says the most about externally driven risks: {listj(over)}. It says least, relative to its own facts, about {listj(under)}. "
-     f"Jev made {JEV_TOTAL['judgments']:,} judgments to measure this, for ${JEV_TOTAL['cost']:.2f}.", "emphasis"),
+     f"This measures disclosure emphasis, not the economic importance of a risk. Jev made {JEV_TOTAL['judgments']:,} judgments across {JEV_TOTAL['requests']:,} requests to measure it, for about ${JEV_TOTAL['cost']:.2f}.", "emphasis"),
 ]
 
 TK = {
     "jev": (f"Jev turned questions that need reading into data: {JEV_TOTAL['judgments']:,} typed judgments across every passage of the filing, for ${JEV_TOTAL['cost']:.2f}. "
             f"Themes were stable on all {int((risks.theme == risks.theme_pass2).sum())} risk factors across two passes, and {manual_ok} of {len(manual)} author-read checks agreed. "
             "The value is coverage and traceability: no sampling, a probability on every call, and every count on this page links back to the passages behind it."),
-    "margin": (f"Accounting gross margin ({B['accounting_gm']:.1%}) is a serving margin, not a measure of what it costs to produce the product. Counting all compute as cost of goods "
-               f"gives {B['compute_margin_all_workloads']:.1%}. After channel fees the figure is about {ch_after:.0%}. The truth for current-period economics lies between, depending on how much "
+    "margin": (f"Accounting gross margin ({B['accounting_gm']:.1%}) is mostly a serving margin, not a measure of what it costs to produce the product. Counting all compute as cost of goods "
+               f"gives {B['compute_margin_all_workloads']:.1%}. Subtracting the disclosed channel-fee floor leaves at most about {ch_after:.1%}, a constructed measure. The truth for current-period economics lies between, depending on how much "
                f"of the {money(B['rd_compute_lo'] / 1000, 1)}–{money(B['rd_compute_hi'] / 1000, 1)} of non-serving compute you treat as the cost of today's models. FY2025 shows how fast this moved: "
                f"its accounting gross margin was {E.BRIDGES['FY2025']['accounting_gm']:.1%} and its operating margin {E.BRIDGES['FY2025']['operating_margin']:.1%}, including the ${E.BRIDGES['FY2025']['settlement'] / 1000:.1f}B settlement."),
     "efficiency": (f"Efficiency improved sharply: revenue per compute dollar rose {q5.rev_per_compute / q1.rev_per_compute:.2f}× year on year. But it has not compounded smoothly. "
                    f"The quarterly gain went from {eff.efficiency_qoq.iloc[2]:.0%} to {eff.efficiency_qoq.iloc[3]:.0%}, then jumped {eff.efficiency_qoq.iloc[4]:.0%} after Opus 4.5. "
-                   f"The incremental return fell from {eff.incremental_ratio.iloc[4]:.2f} to {eff.incremental_ratio.iloc[5]:.2f} revenue dollars per added compute dollar. "
+                   f"Incremental revenue per compute-expense dollar fell from {eff.incremental_ratio.iloc[4]:.2f} to {eff.incremental_ratio.iloc[5]:.2f}; that is a ratio of quarterly changes, not an investment return. "
                    "Read the next releases as the test of whether the step pattern continues."),
-    "dcf": (f"Capacity is not the constraint; demand is. The firm commitments, about ${firm:,.0f}B, need revenue to compound about {g90.demand_growth_for_npv:.0%} a year from today's run-rate to earn the discount rate, "
-            f"and the liquidity covenant holds from about {g90.demand_growth_for_covenant:.0%}. If every contracted deal runs, up to ${upper:,.0f}B, the bar rises to about {g90F.demand_growth_for_both:.0%} a year. "
+    "dcf": (f"In this model, capacity is not the constraint; demand is. Under the base-case assumptions, the ${firm:,.0f}B ledger needs revenue to compound about {g90.demand_growth_for_npv:.0%} a year from today's run-rate to earn the discount rate, "
+            f"and modeled year-end cash stays above the liquidity covenant from about {g90.demand_growth_for_covenant:.0%}; annual figures cannot establish quarterly compliance. In the ${upper:,.0f}B upper scenario the bar rises to about {g90F.demand_growth_for_both:.0%} a year. "
             f"If demand instead filled all the firm capacity at H1 2026 revenue per serving dollar, the contracts would be worth {money(g90.npv_at_observed_busd)}. "
             "The utilization needed depends on an assumed H1 2026 level and is shown relative to it."),
     "customers": (f"The revenue base broadened through 2026. The top five's share fell from {1 - v('outside_top5_q1_26') / 100:.0%} to {E.TOP5_Q3:.0%} while each top-five customer still set a record. "

@@ -91,9 +91,9 @@ function renderMarginTable() {
 // ---------------------------------------------------------------- 2. efficiency
 let RATIO = "rev_per_compute", LAG = 0;
 const RATIO_LEGEND = {rev_per_compute: "revenue per compute dollar, same quarter", rolling_2q_ratio: "revenue per compute dollar, rolling two quarters",
-  lag1_ratio: "revenue per compute dollar of the prior quarter", lag2_ratio: "revenue per compute dollar of two quarters earlier", incremental_ratio: "added revenue per added compute dollar"};
+  lag1_ratio: "revenue per compute dollar of the prior quarter", lag2_ratio: "revenue per compute dollar of two quarters earlier", incremental_ratio: "incremental revenue per compute-expense dollar"};
 const RATIO_TITLE = {rev_per_compute: "Revenue, compute, and revenue per compute dollar", rolling_2q_ratio: "Revenue, compute, and revenue per compute dollar (rolling two quarters)",
-  lag1_ratio: "Revenue against the prior quarter's compute", lag2_ratio: "Revenue against compute two quarters earlier", incremental_ratio: "Revenue, compute, and the return on added compute"};
+  lag1_ratio: "Revenue against the prior quarter's compute", lag2_ratio: "Revenue against compute two quarters earlier", incremental_ratio: "Revenue, compute, and incremental revenue per compute-expense dollar"};
 const RATIOS = [["rev_per_compute", "same quarter"], ["rolling_2q_ratio", "rolling two quarters"], ["lag1_ratio", "vs compute a quarter earlier"], ["lag2_ratio", "two quarters earlier"], ["incremental_ratio", "incremental"]];
 function renderEff() {
   const e = DATA.eff, q = e.map(r => r.quarter), xi = q.map((_, i) => i), relQ = {};
@@ -111,7 +111,7 @@ function renderEff() {
      text: ratio.map(v => v == null ? "" : "$" + v.toFixed(2)), textposition: "top center", textfont: {color: T.fg, size: 11}, hovertemplate: "%{customdata}: %{y:.2f}<extra></extra>"},
     {type: "scatter", mode: "markers", x: rx, y: rx.map(() => ymax2 * 0.97), yaxis: "y2", name: "model and product releases", marker: {symbol: "triangle-down", size: 11, color: T.amber}, text: rt, hovertemplate: "%{text}<extra></extra>"}],
     L({barmode: "group", title: {text: RATIO_TITLE[RATIO]}, margin: {l: 52, r: 52, t: 48, b: 50}, xaxis: {tickvals: xi, ticktext: q, range: [-0.6, q.length - 0.3]},
-       yaxis: {title: "$ billions"}, yaxis2: {title: RATIO === "incremental_ratio" ? "added revenue per added compute $" : "revenue per compute $", overlaying: "y", side: "right", range: [0, ymax2], showgrid: false, linecolor: T.line}, legend: {orientation: "h", y: -0.18}, shapes}), CFG);
+       yaxis: {title: "$ billions"}, yaxis2: {title: RATIO === "incremental_ratio" ? "incremental revenue per compute-expense $" : "revenue per compute $", overlaying: "y", side: "right", range: [0, ymax2], showgrid: false, linecolor: T.line}, legend: {orientation: "h", y: -0.18}, shapes}), CFG);
   onClick("fig-eff", p => p.curveNumber > 2 ? null : "fact:q_" + (p.curveNumber === 1 ? "compute_" : "revenue_") + q[Math.round(p.x)]);
   renderDecomp(); renderEffTable();
 }
@@ -211,7 +211,7 @@ function renderModel() {
   const kpi = (v, l, cls = "", lead = false) => `<div class="kpi${lead ? " lead" : ""}"><div class="v ${cls}">${v}</div><div class="l">${l}</div></div>`;
   const mode = P.demand_on ? `revenue limited by ${pct(P.demand_g, 0)} demand growth` : "demand fills capacity";
   $("kpis").innerHTML = [
-    kpi(gtxt(dem.g_both), "demand growth needed for NPV ≥ 0 and cash above the covenant every year", isNaN(dem.g_both) ? "warn" : "", true),
+    kpi(gtxt(dem.g_both), "modeled demand growth needed for NPV ≥ 0 and year-end cash above the covenant", isNaN(dem.g_both) ? "warn" : "", true),
     kpi(gtxt(dem.g_npv), "demand growth needed for NPV ≥ 0 alone"),
     kpi(fmtB(r.npv), `NPV at current settings (${mode})`, r.npv < 0 ? "warn" : "ok"),
     kpi(fmtB(total) + " / " + fmtB(r.pv_pay), `payments in scope / their present value at ${pct(P.rate_pay, 1)}`),
@@ -225,11 +225,11 @@ function renderModel() {
   [[dem.g_npv, "NPV = 0", T.accent], [dem.g_cash, "covenant", T.amber]].forEach(([g, n, c]) => { if (!isNaN(g)) sh.push({type: "line", xref: "x", yref: "paper", x0: g, x1: g, y0: 0, y1: 1, line: {color: c, dash: "dot", width: 1.5}}); });
   Plotly.react("fig-demand", [
     {x: gs, y: npvs.map(o => o.npv), name: "NPV", mode: "lines", line: {color: T.accent, width: 3}, hovertemplate: "demand growth %{x:.0%}: NPV $%{y:.0f}B<extra></extra>"},
-    {x: gs, y: npvs.map(o => o.min_cash - cov), name: "lowest cash above the covenant", mode: "lines", line: {color: T.amber, width: 2.5, dash: "dash"}, hovertemplate: "demand growth %{x:.0%}: lowest cash $%{y:.0f}B above the covenant<extra></extra>"}],
+    {x: gs, y: npvs.map(o => o.min_cash - cov), name: "lowest modeled year-end cash above the covenant", mode: "lines", line: {color: T.amber, width: 2.5, dash: "dash"}, hovertemplate: "demand growth %{x:.0%}: lowest cash $%{y:.0f}B above the covenant<extra></extra>"}],
     L({title: {text: "What demand growth the contracts need"}, xaxis: {title: "annual demand growth from the Q2 2026 run-rate", tickformat: ".0%"}, yaxis: {title: "$ billions (zero = threshold)", zeroline: true, zerolinecolor: T.fg, zerolinewidth: 1.5},
        shapes: sh, legend: {orientation: "h", y: -0.22},
        annotations: [!isNaN(dem.g_npv) ? {x: dem.g_npv, y: 0.98, yref: "paper", text: "NPV ≥ 0 from " + pct(dem.g_npv, 0), showarrow: false, xanchor: "right", font: {size: 11, color: T.accent}, yanchor: "top", bgcolor: T.surface} : null,
-                     !isNaN(dem.g_cash) ? {x: dem.g_cash, y: 0.06, yref: "paper", text: "covenant met from " + pct(dem.g_cash, 0), showarrow: false, xanchor: "left", font: {size: 11, color: T.amber}, yanchor: "bottom", bgcolor: T.surface} : null].filter(Boolean)}), CFG);
+                     !isNaN(dem.g_cash) ? {x: dem.g_cash, y: 0.06, yref: "paper", text: "modeled cash above covenant from " + pct(dem.g_cash, 0), showarrow: false, xanchor: "left", font: {size: 11, color: T.amber}, yanchor: "bottom", bgcolor: T.surface} : null].filter(Boolean)}), CFG);
   // revenue paths
   const tr = [];
   if (feasible) tr.push({x: lab, y: req.R, name: "revenue needed for NPV = 0", mode: "lines+markers", line: {color: T.ink, width: 3}, marker: {color: T.ink}, hovertemplate: "%{x}: needed $%{y:.0f}B<extra></extra>"});
