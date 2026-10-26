@@ -1,6 +1,6 @@
 # Anthropic S-1 Economics
 
-An independent, figure-by-figure reading of Anthropic, PBC's [Form S-1](https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/anthropicpbc-sx1.htm) (filed October 26, 2026, SEC CIK 2130357). It covers margins, compute efficiency, the economics of more than $800 billion of contracted compute, customer concentration, and how the filing distributes its risk disclosure.
+An independent, figure-by-figure reading of Anthropic, PBC's [Form S-1](https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/anthropicpbc-sx1.htm) (filed October 26, 2026, SEC CIK 2130357). It covers margins, compute efficiency, the economics of roughly $680–855 billion of contracted compute, customer concentration, and how the filing distributes its risk disclosure.
 
 **Interactive report:** https://yakshb.github.io/anthropic-s1-analysis/ (also in [`docs/index.html`](docs/index.html)).
 
@@ -12,9 +12,9 @@ An independent, figure-by-figure reading of Anthropic, PBC's [Form S-1](https://
 |---|---|
 | **Gross margin** | Accounting gross margin was **85.4%** in H1 2026, but cost of revenue covers serving compute only. Charging all compute, training included, as cost of goods gives **45.1%**. After channel-partner fees it is about **28%**, and the operating margin was **−4.3%**. FY2025's operating margin was **−175.8%**, including the $1.5B Bartz settlement. |
 | **Compute efficiency** | Revenue per compute dollar rose from **$0.57** (Q2 2025) to **$2.08** (Q2 2026), a 3.7× gain. About half of the 15× revenue growth came with more compute. The gains arrived in steps after model releases. The marginal return on new compute fell from Q1 to Q2 2026: $6.09 of revenue per added compute dollar, then $3.14. |
-| **Contracted compute** | **$855B** is contracted, of which **$683B** is firm. If demand fills that capacity at H1 2026 economics, the contracts are worth about **$276B** at split discount rates: 10.9% on revenue, 7.4% on payments. If revenue is limited by demand, it must grow about **64% a year** from the $46B Q2 2026 run-rate for NPV ≥ 0. It must grow about **69% a year** to keep cash above the $5B liquidity covenant. |
-| **Customers** | Customers spending $100K+ a year were **74%** of H1 2026 revenue, and about **250** customers spend $10M+. The top five customers' share fell from **36%** (Q1 2026) to **21%** (Q3 2026). Losing that 21% from 2028 raises the demand growth needed to about **114% a year**. |
-| **Disclosure emphasis** | Risk factors spend the most words, relative to the filing's own facts, on regulation, competition, AI safety, IP litigation and cybersecurity. They spend the least on supplier conflicts of interest, access to capital and talent. |
+| **Contracted compute** | Firm compute commitments total about **$682B**. The **$855B** upper bound adds deals that can be cancelled or that depend on the vendor's financing, and may double-count contracts amended after June 30. Press reports on draft prospectuses put the figure between $600B and $750B. If revenue grows only as fast as demand, it must compound about **44% a year** from the $46B Q2 2026 run-rate to carry the firm commitments, or about **69% a year** if every contracted deal runs. Discount rates are 10.9% on revenue and 7.4% on payments. |
+| **Customers** | Customers spending $100K+ a year were **74%** of H1 2026 revenue, and about **250** customers spend $10M+. The top five customers' share fell from **36%** (Q1 2026) to **21%** (Q3 2026). Losing that 21% from 2028 raises the demand growth needed on firm commitments to about **73% a year**. |
+| **Disclosure emphasis** | Risk factors spend the most words, relative to the filing's own facts, on regulation, competition, AI safety, IP litigation and cybersecurity. They spend the least on access to capital, supplier conflicts of interest, and talent. |
 
 Every figure in the report links to the sentence in the filing that states it.
 
@@ -125,6 +125,13 @@ Retrieved through [Financial Modeling Prep](https://site.financialmodelingprep.c
 - **Peer betas and capital structure**: five-year monthly betas, market capitalizations and total debt from FMP company profiles and balance sheets for Microsoft, Alphabet, Amazon, Meta, Oracle, Palantir, Snowflake, ServiceNow, Datadog and CoreWeave.
 
 The payment-side discount rate uses no outside data. It is the lease discount rate disclosed in Note 7 of the Anthropic S-1.
+
+### Press reports used as a cross-check
+
+These describe draft prospectuses reviewed before the public filing. They are compared with the contract ledger in report section 3.1; no figure in the model comes from them.
+
+- [Bloomberg, October 20, 2026](https://www.bloomberg.com/news/articles/2026-10-20/anthropic-could-spend-750-billion-on-computing-costs-wsj-says), citing The Wall Street Journal: possible computing spend of up to $750B, including deals still under negotiation.
+- [The Next Web, October 21, 2026](https://thenextweb.com/news/anthropic-s-1-750bn-compute-80-7bn-loss), summarizing the WSJ and Axios: more than $600B of future infrastructure costs, plus about $150B in deals under negotiation.
 
 ### Reading judgments
 

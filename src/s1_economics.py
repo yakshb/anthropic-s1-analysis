@@ -277,9 +277,9 @@ def build_ledger():
     ("C_broadcom", "C. Leases not yet commenced at 6/30/26 (Note 7)", "Broadcom master equipment leases (not yet commenced part)", bc_nc, "binding once ready for service", alloc(bc_nc, 2027, 2032), "five-year leases; assumed 2027 – 2031", "lease term from filing; start year assumed", ["broadcom_rent_all", "broadcom_rent_2026"], True, None),
     ("C_resid", "C. Leases not yet commenced at 6/30/26 (Note 7)", "Other compute and data center leases (residual)", C_jun - bc_nc, "binding, some subject to conditions", alloc(C_jun - bc_nc, 2027, 2042), "assumed 2027 – 2041", "assumption (terms up to 20 years)", ["C_leases_nc_jun30"], True, None),
     ("D_spacexai_nc", "D. Added after 6/30/26 (Note 17)", "SpaceXAI, through the non-cancelable period plus notice", None, "binding through the notice period", None, f"from Q4 2026 to {spx_nc} + {int(spx_notice)} days", "filing terms; payment ramp assumed straight-line", ["spacexai_amount", "spacexai_noncancel_end", "spacexai_notice_days", "spacexai_monthly"], True, None),
-    ("D_spacexai_rest", "D. Added after 6/30/26 (Note 17)", "SpaceXAI, cancelable remainder", None, "cancelable on notice", None, f"to {spx_to}", "filing terms", ["spacexai_amount", "spacexai_to"], True, "spacexai_cancel"),
-    ("D_nscale", "D. Added after 6/30/26 (Note 17)", "Nscale (fees as delivered; vendor must secure financing)", nscale, "conditional on vendor financing and delivery", alloc(nscale, 2027, int(nscale_to) + 1), f"2027 – {nscale_to}", "end from filing; start assumed", ["nscale_amount", "nscale_to"], True, "vendor_conditional"),
-    ("D_lambda_aug", "D. Added after 6/30/26 (Note 17)", "Lambda August 2026 agreement (terminable if lease not secured)", lam_aug, "conditional on vendor lease", alloc(lam_aug, 2027, int(lam_to) + 1), f"2027 – {lam_to}", "end from filing; start assumed", ["lambda_aug_amount", "lambda_to"], True, "vendor_conditional"),
+    ("D_spacexai_rest", "D. Added after 6/30/26 (Note 17)", "SpaceXAI, cancelable remainder", None, "cancelable on notice", None, f"to {spx_to}", "filing terms", ["spacexai_amount", "spacexai_to"], False, "cancelable"),
+    ("D_nscale", "D. Added after 6/30/26 (Note 17)", "Nscale (fees as delivered; vendor must secure financing)", nscale, "conditional on vendor financing and delivery", alloc(nscale, 2027, int(nscale_to) + 1), f"2027 – {nscale_to}", "end from filing; start assumed", ["nscale_amount", "nscale_to"], False, "vendor_conditional"),
+    ("D_lambda_aug", "D. Added after 6/30/26 (Note 17)", "Lambda August 2026 agreement (terminable if lease not secured)", lam_aug, "conditional on vendor lease", alloc(lam_aug, 2027, int(lam_to) + 1), f"2027 – {lam_to}", "end from filing; start assumed", ["lambda_aug_amount", "lambda_to"], False, "vendor_conditional"),
     ("D_resid", "D. Added after 6/30/26 (Note 17)", "Other additions after 6/30 (residual)", D_resid, "binding, some subject to conditions", alloc(D_resid, 2027, 2037), "assumed 2027 – 2036", "assumption (commencing 2026–2036, terms up to 20 years)", ["D_added_after_jun30"], True, None),
     ("E_short", "E. Short-term commitments after 6/30/26 (Note 17)", "Short-term non-cancelable", E_short, "binding", alloc(E_short, 2026.75, 2027.75), "assumed within 12 months", "assumption", ["E_short_term_after_jun30"], True, None),
     ("F_tpu", "F. Estimates outside every commitment figure", "Additional TPU compute (estimate, midpoint)", (tpu_lo + tpu_hi) / 2, "estimate: no fixed dollar commitment", alloc((tpu_lo + tpu_hi) / 2, int(tpu_w[0]), int(tpu_w[1]) + 1), f"{tpu_w[0]} – {tpu_w[1]}", "filing window, straight-line", ["tpu_low", "tpu_high", "tpu_from", "tpu_to"], False, "estimates"),
@@ -337,23 +337,24 @@ for r, S_ in SCHEDS.items():
     assert np.allclose(S_.sum(axis=1).values, [l[3] for l in LEDGERS[r]], atol=0.02), f"ramp {r}: schedule does not sum to the ledger amounts"
 
 binding_total = A_jun + B_total + C_jun + D_post + E_short
-RECON = pd.DataFrame([
-    {"check": "Contracted commitments, A+B+C+D+E (incl. cancelable and conditional)", "value_busd": binding_total, "detail": f"{A_jun} + {B_total:.1f} + {C_jun} + {D_post} + {E_short}. The categories come from different notes and dates; that does not by itself rule out overlap, and amendments after June 30 may restate amounts already in A (see below)."},
-    {"check": "Of which firm: excluding the cancelable SpaceXAI tail and the vendor-conditional Nscale and Lambda agreements", "value_busd": None, "detail": ""},
-    {"check": "Roll-forward Dec 31, 2025 → June 30, 2026", "value_busd": (A_jun + C_jun) - (A_dec + C_dec + post_dec),
-     "detail": f"(A {A_jun} + C {C_jun}) − (A {A_dec:.1f} + C {C_dec} at Dec 31 + {post_dec} added to June 1) = net additions in June less H1 payments; not separately disclosed"},
-    {"check": "Named agreements dated before 6/30 vs category A", "value_busd": A_named - A_jun,
-     "detail": f"Microsoft {msft} + Google remaining {goog_rem:.1f} + Amazon remaining {amzn_rem:.1f} + Lambda May/June {lam_early:.1f} = {A_named:.1f} vs {A_jun}; a positive gap means some amounts (Google amended May–Aug, Microsoft amended Oct) sit in Note 17 instead"},
-    {"check": "Named post-6/30 agreements vs category D", "value_busd": D_post - D_named, "detail": f"SpaceXAI {spx} + Nscale {nscale} + Lambda Aug {lam_aug} = {D_named:.1f} of {D_post}; SpaceXAI is assigned to D because category A has no room for it"},
-    {"check": "Broadcom not-yet-commenced leases inside category C", "value_busd": C_jun - bc_nc, "detail": f"{bc_all} rent less {bc_comm/1000:.2f} commenced = {bc_nc:.1f} of C {C_jun}"},
-    {"check": "Estimates excluded from the binding total (F)", "value_busd": (tpu_lo + tpu_hi) / 2 + amd, "detail": f"TPU {tpu_lo}–{tpu_hi} midpoint, AMD > {amd}; the filing excludes both from its commitment figures"},
-    {"check": "The earlier capital chart's stack", "value_busd": A_jun + D_post + E_short + bc_all + tpu_lo,
-     "detail": "A + D + E + all Broadcom rent + TPU low end: double-counts Broadcom (inside C) and adds an estimate; omits the rest of C. Replaced by this ledger"},
-])
 _amt = {l[0]: l[3] for l in LEDGER}
 FIRM_TOTAL = binding_total - _amt["D_spacexai_rest"] - _amt["D_nscale"] - _amt["D_lambda_aug"]
-RECON.loc[RECON.check.str.startswith("Of which firm"), ["value_busd", "detail"]] = [FIRM_TOTAL, f"{binding_total:.1f} less SpaceXAI after its notice period ({_amt['D_spacexai_rest']:.1f}), Nscale ({_amt['D_nscale']:.1f}) and Lambda's August agreement ({_amt['D_lambda_aug']:.1f}). Other amounts the filing calls 'subject to certain contractual conditions' cannot be separated and stay in."]
-
+FIRM_LONG = FIRM_TOTAL - E_short - B_total
+RECON = pd.DataFrame([
+    {"check": "Upper bound: every contracted category, A+B+C+D+E", "value_busd": binding_total,
+     "detail": f"{A_jun} + {B_total:.1f} + {C_jun} + {D_post} + {E_short}. Includes SpaceXAI after its notice period ({_amt['D_spacexai_rest']:.1f}), which either party can cancel, and the Nscale ({_amt['D_nscale']:.1f}) and Lambda August ({_amt['D_lambda_aug']:.1f}) agreements, which depend on the vendor securing financing or a lease. Treat it as a ceiling."},
+    {"check": "Firm commitments (base case)", "value_busd": FIRM_TOTAL,
+     "detail": f"The upper bound less those three amounts. Other amounts the filing calls 'subject to certain contractual conditions' cannot be separated and stay in."},
+    {"check": "Firm, multi-year only", "value_busd": FIRM_LONG,
+     "detail": f"Firm commitments less short-term commitments added after June 30 ({E_short}) and leases already on the balance sheet ({B_total:.1f}, which include offices)."},
+    {"check": "Overlap risk: amendments after June 30", "value_busd": A_named - A_jun,
+     "detail": f"Named agreements dated before June 30 (Microsoft {msft}, Google remaining {goog_rem:.1f}, Amazon remaining {amzn_rem:.1f}, Lambda May/June {lam_early:.1f}) sum to {A_named:.1f}, above the {A_jun} June 30 total. Google was amended May–August and Microsoft in October, so part of their stated amounts sits in the post-June 30 figure. If Note 17 counts an amended contract in full rather than its increase, the overlap is larger; the filing does not say which."},
+    {"check": "Roll-forward Dec 31, 2025 to June 30, 2026", "value_busd": (A_jun + C_jun) - (A_dec + C_dec + post_dec),
+     "detail": f"(A {A_jun} + C {C_jun}) − (A {A_dec:.1f} + C {C_dec} at Dec 31 + {post_dec} added to June 1) = net additions in June less H1 payments; not separately disclosed."},
+    {"check": "Named post-June 30 agreements inside category D", "value_busd": D_post - D_named, "detail": f"SpaceXAI {spx} + Nscale {nscale} + Lambda Aug {lam_aug} = {D_named:.1f} of {D_post}. SpaceXAI is assigned to D because category A has no room for it."},
+    {"check": "Broadcom not-yet-commenced leases inside category C", "value_busd": C_jun - bc_nc, "detail": f"{bc_all} rent less {bc_comm/1000:.2f} already commenced = {bc_nc:.1f} of C's {C_jun}."},
+    {"check": "Estimates outside every commitment figure (F, excluded)", "value_busd": (tpu_lo + tpu_hi) / 2 + amd, "detail": f"TPU {tpu_lo}–{tpu_hi} (midpoint) and AMD > {amd}; the filing excludes both from its commitment figures."},
+])
 
 # ============================================================== 4b. discount-rate and customer facts
 fact("lease_rate_operating", "Weighted-average discount rate, operating leases, June 30, 2026", r"Weighted-average discount rate - operating leases [\d.]+ % [\d.]+ % ([\d.]+) %", FS, "pct")
@@ -481,7 +482,9 @@ BASE = {"u": 0.9, "k_mult": 1.0, "train_start": round(OBS["train_start"], 4), "t
 
 
 def scope_sched(toggles):
-    keep = [l[0] for l in LEDGER if (l[9] or toggles.get(l[10], False)) and not (l[10] in ("spacexai_cancel", "vendor_conditional") and toggles.get(l[10], False))]
+    """Firm commitments by default; toggles add the cancelable SpaceXAI tail ('cancelable'), the vendor-conditional
+    Nscale and Lambda agreements ('vendor_conditional'), or the estimates outside the filing's figures ('estimates')."""
+    keep = [l[0] for l in LEDGER if l[9] or toggles.get(l[10], False)]
     return SCHED.loc[keep].sum().values, keep
 
 
@@ -508,8 +511,8 @@ def scenarios(toggles=None):
     return pd.DataFrame(rows), sched, keep
 
 
-SCEN, SCHED_BASE, KEEP_BASE = scenarios()
-SCEN_STRESS, _, _ = scenarios({"spacexai_cancel": True, "vendor_conditional": True})
+SCEN, SCHED_BASE, KEEP_BASE = scenarios()  # firm commitments
+SCEN_FULL, _, _ = scenarios({"cancelable": True, "vendor_conditional": True})  # upper bound
 TOP5_Q3 = 1 - FACTS["outside_top5_q3_26"].value / 100
 _b = dict(BASE)
 BASE.update(loss_share=TOP5_Q3, loss_year=2028)
@@ -523,7 +526,7 @@ if __name__ == "__main__":
     ledger.to_csv(DATA_MODEL / "contract_ledger.csv", index=False)
     pd.concat({f"ramp {r_}y": S_ for r_, S_ in SCHEDS.items()}).round(3).to_csv(DATA_MODEL / "payment_calendar.csv")
     RECON.to_csv(DATA_MODEL / "ledger_reconciliation.csv", index=False)
-    pd.concat([SCEN.assign(scope="binding (A-E)"), SCEN_STRESS.assign(scope="SpaceXAI cancelled at notice, vendor-conditional excluded"), SCEN_LOSS.assign(scope=f"binding, top-five revenue ({TOP5_Q3:.0%}) lost from 2028")]).to_csv(DATA_MODEL / "utilization_scenarios.csv", index=False)
+    pd.concat([SCEN.assign(scope="firm commitments (base case)"), SCEN_FULL.assign(scope="upper bound: incl. cancelable SpaceXAI tail and vendor-conditional deals"), SCEN_LOSS.assign(scope=f"firm, top-five revenue ({TOP5_Q3:.0%}) lost from 2028")]).to_csv(DATA_MODEL / "utilization_scenarios.csv", index=False)
     pd.DataFrame([{"key": k, **v} for k, v in ASSUMPTIONS.items()]).to_csv(DATA_MODEL / "model_assumptions.csv", index=False)
     pd.set_option("display.width", 220); pd.set_option("display.max_colwidth", 90)
     print(f"{len(FACTS)} facts extracted")
@@ -538,6 +541,6 @@ if __name__ == "__main__":
     print("payment calendar (binding, $B):", dict(zip(YEARS, SCHED.loc[KEEP_BASE].sum().round(1))))
     print("BASE", BASE)
     print(SCEN.round(3).T)
-    print(SCEN_STRESS.round(3).T)
+    print(SCEN_FULL.round(3).T)
     print(SCEN_LOSS.round(3).T)
     print("HURDLE", {k: (round(v, 4) if isinstance(v, float) else v) for k, v in HURDLE.items() if k != "peers"})

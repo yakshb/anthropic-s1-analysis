@@ -90,6 +90,10 @@ function renderMarginTable() {
 
 // ---------------------------------------------------------------- 2. efficiency
 let RATIO = "rev_per_compute", LAG = 0;
+const RATIO_LEGEND = {rev_per_compute: "revenue per compute dollar, same quarter", rolling_2q_ratio: "revenue per compute dollar, rolling two quarters",
+  lag1_ratio: "revenue per compute dollar of the prior quarter", lag2_ratio: "revenue per compute dollar of two quarters earlier", incremental_ratio: "added revenue per added compute dollar"};
+const RATIO_TITLE = {rev_per_compute: "Revenue, compute, and revenue per compute dollar", rolling_2q_ratio: "Revenue, compute, and revenue per compute dollar (rolling two quarters)",
+  lag1_ratio: "Revenue against the prior quarter's compute", lag2_ratio: "Revenue against compute two quarters earlier", incremental_ratio: "Revenue, compute, and the return on added compute"};
 const RATIOS = [["rev_per_compute", "same quarter"], ["rolling_2q_ratio", "rolling two quarters"], ["lag1_ratio", "vs compute a quarter earlier"], ["lag2_ratio", "two quarters earlier"], ["incremental_ratio", "incremental"]];
 function renderEff() {
   const e = DATA.eff, q = e.map(r => r.quarter), xi = q.map((_, i) => i), relQ = {};
@@ -103,11 +107,11 @@ function renderEff() {
   Plotly.react("fig-eff", [
     {type: "bar", x: xi, y: e.map(r => r.revenue / 1000), name: "revenue ($B)", marker: {color: T.c[0]}, customdata: q, hovertemplate: "%{customdata}: revenue $%{y:.2f}B<extra></extra>"},
     {type: "bar", x: xi, y: e.map(r => r.compute / 1000), name: "compute and infrastructure ($B)", marker: {color: T.c[1]}, customdata: q, hovertemplate: "%{customdata}: compute $%{y:.2f}B<extra></extra>"},
-    {type: "scatter", mode: "lines+markers+text", x: xi, y: ratio, yaxis: "y2", name: "revenue per compute dollar", line: {color: T.ink, width: 3}, marker: {color: T.ink}, customdata: q,
+    {type: "scatter", mode: "lines+markers+text", x: xi, y: ratio, yaxis: "y2", name: RATIO_LEGEND[RATIO], line: {color: T.ink, width: 3}, marker: {color: T.ink}, customdata: q,
      text: ratio.map(v => v == null ? "" : "$" + v.toFixed(2)), textposition: "top center", textfont: {color: T.fg, size: 11}, hovertemplate: "%{customdata}: %{y:.2f}<extra></extra>"},
     {type: "scatter", mode: "markers", x: rx, y: rx.map(() => ymax2 * 0.97), yaxis: "y2", name: "model and product releases", marker: {symbol: "triangle-down", size: 11, color: T.amber}, text: rt, hovertemplate: "%{text}<extra></extra>"}],
-    L({barmode: "group", title: {text: "Revenue, compute, and revenue per compute dollar"}, margin: {l: 52, r: 52, t: 48, b: 50}, xaxis: {tickvals: xi, ticktext: q, range: [-0.6, q.length - 0.3]},
-       yaxis: {title: "$ billions"}, yaxis2: {title: "revenue per compute $", overlaying: "y", side: "right", range: [0, ymax2], showgrid: false, linecolor: T.line}, legend: {orientation: "h", y: -0.18}, shapes}), CFG);
+    L({barmode: "group", title: {text: RATIO_TITLE[RATIO]}, margin: {l: 52, r: 52, t: 48, b: 50}, xaxis: {tickvals: xi, ticktext: q, range: [-0.6, q.length - 0.3]},
+       yaxis: {title: "$ billions"}, yaxis2: {title: RATIO === "incremental_ratio" ? "added revenue per added compute $" : "revenue per compute $", overlaying: "y", side: "right", range: [0, ymax2], showgrid: false, linecolor: T.line}, legend: {orientation: "h", y: -0.18}, shapes}), CFG);
   onClick("fig-eff", p => p.curveNumber > 2 ? null : "fact:q_" + (p.curveNumber === 1 ? "compute_" : "revenue_") + q[Math.round(p.x)]);
   renderDecomp(); renderEffTable();
 }
@@ -135,21 +139,18 @@ function renderEffTable() {
 }
 
 // ---------------------------------------------------------------- 3. contracted compute
-const SCOPE = {spacexai_cancel: false, vendor_conditional: false, estimates: false};
+const SCOPE = {cancelable: false, vendor_conditional: false, estimates: false};  // firm commitments by default; each switch adds a category
 let RAMP = String(DATA.assumptions.ramp_in.value); if (!DATA.ramps.includes(RAMP)) RAMP = DATA.ramps.find(r => +r === +RAMP) || DATA.ramps[1];
 const P = Object.assign({}, DATA.base);
 const catKey = c => c.slice(0, 2), CATC = () => ({"A.": T.c[0], "B.": T.c[7 - 1], "C.": T.c[4], "D.": T.c[1], "E.": T.c[3], "F.": T.c[6]});
 function inScope(l) {
-  if (l.toggle === "estimates") return SCOPE.estimates;
-  if (l.toggle === "spacexai_cancel" && SCOPE.spacexai_cancel) return false;
-  if (l.toggle === "vendor_conditional" && SCOPE.vendor_conditional) return false;
-  return l.base;
+  return l.toggle ? !!SCOPE[l.toggle] : l.base;
 }
 function schedule() { const s = new Array(DATA.years.length).fill(0); DATA.ledger.filter(inScope).forEach(l => l.sched[RAMP].forEach((v, i) => s[i] += v)); return s; }
 function renderLedger() {
   const cc = CATC(), tot = DATA.ledger.filter(inScope).reduce((a, l) => a + l.amount[RAMP], 0);
   const rows = DATA.ledger.map(l => `<tr data-src="ledger:${l.id}" style="${inScope(l) ? "" : "opacity:.45"}"><td><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${cc[catKey(l.category)]}"></span> ${esc(l.category.split(" (")[0])}</td><td>${esc(l.item)}</td><td class="num">${fmtB(l.amount[RAMP])}</td><td>${esc(l.status)}</td><td>${esc(l.window)}</td></tr>`).join("");
-  $("ledger-table").innerHTML = `<table class="t"><thead><tr><th>Category</th><th>Item</th><th class="num">Amount</th><th>Status</th><th>Window</th></tr></thead><tbody>${rows}<tr class="total"><td></td><td>In scope</td><td class="num">${fmtB(tot)}</td><td colspan="2">contracted, incl. cancelable and conditional</td></tr><tr class="total"><td></td><td>Firm subtotal</td><td class="num">${fmtB(DATA.firm_total)}</td><td colspan="2">excludes the identifiable cancelable and vendor-conditional amounts</td></tr></tbody></table>`;
+  $("ledger-table").innerHTML = `<table class="t"><thead><tr><th>Category</th><th>Item</th><th class="num">Amount</th><th>Status</th><th>Window</th></tr></thead><tbody>${rows}<tr class="total"><td></td><td>In scope now</td><td class="num">${fmtB(tot)}</td><td colspan="2">set by the scope switches above the calendar</td></tr><tr class="total"><td></td><td>Firm commitments (base case)</td><td class="num">${fmtB(DATA.firm_total)}</td><td colspan="2">excludes the cancelable SpaceXAI tail and the vendor-conditional deals</td></tr><tr class="total"><td></td><td>Upper bound</td><td class="num">${fmtB(DATA.upper_total)}</td><td colspan="2">every contracted category; possible amendment overlap not removed</td></tr></tbody></table>`;
   $("recon-table").innerHTML = `<table class="t"><thead><tr><th>Reconciliation check</th><th class="num">Value</th><th>Detail</th></tr></thead><tbody>${Object.keys(SOURCES).filter(k => k.startsWith("recon:")).map(k => `<tr data-src="${k}"><td>${esc(SOURCES[k].title)}</td><td class="num">${esc(SOURCES[k].meta)}</td><td>${esc(SOURCES[k].texts[0] || "")}</td></tr>`).join("")}</tbody></table>`;
 }
 function renderCalendar() {
@@ -264,7 +265,7 @@ function renderScope() {
   chips($("ramp-chips"), DATA.ramps.map(r => [r, +r === 0 ? "straight-line" : (+r).toFixed(1).replace(".0", "") + " yr"]), RAMP, k => { RAMP = k; $("ramp-v").textContent = k + " yr"; refreshContracts(); });
   $("ramp-v").textContent = RAMP + " yr";
   const el = $("scope-chips"); el.innerHTML = "";
-  [["spacexai_cancel", "Cancel SpaceXAI at first notice"], ["vendor_conditional", "Drop vendor-conditional (Nscale, Lambda Aug)"], ["estimates", "Add estimates (TPU, AMD)"]].forEach(([k, lab]) => {
+  [["cancelable", "Add SpaceXAI after its notice period (cancelable)"], ["vendor_conditional", "Add vendor-conditional deals (Nscale, Lambda Aug)"], ["estimates", "Add estimates outside the filing (TPU, AMD)"]].forEach(([k, lab]) => {
     const b = document.createElement("button"); b.type = "button"; b.textContent = lab; b.className = SCOPE[k] ? "on" : "";
     b.onclick = () => { SCOPE[k] = !SCOPE[k]; b.className = SCOPE[k] ? "on" : ""; refreshContracts(); };
     el.appendChild(b);
@@ -311,7 +312,7 @@ function themePyFigs() {
 function wirePyFigs() {
   onClick("fig-words", p => p.data.meta ? "theme:" + p.data.meta[p.pointIndex] : null);
   onClick("fig-evidence", p => "ev:" + p.data.meta[Array.isArray(p.pointIndex) ? p.pointIndex[0] : p.pointNumber[0]] + "|" + p.x);
-  onClick("fig-factors", p => SOURCES["risk:" + p.label] ? "risk:" + p.label : "theme:" + p.label);
+  onClick("fig-factors", p => SOURCES["risk:" + p.id] ? "risk:" + p.id : (SOURCES["theme:" + p.id] ? "theme:" + p.id : null));
   onClick("fig-genre", p => "theme:" + p.data.meta[p.pointIndex]);
   onClick("fig-vendors", p => "agreement:" + p.x);
   onClick("fig-roles", p => "role:" + p.y + "|" + p.x.replace(/ /g, "_"));

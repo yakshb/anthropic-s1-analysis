@@ -10,7 +10,7 @@ from paths import WEB
 
 HERE = Path(__file__).resolve().parent
 cases = []
-for toggles in ({}, {"spacexai_cancel": True, "vendor_conditional": True}, {"estimates": True}):
+for toggles in ({}, {"cancelable": True, "vendor_conditional": True}, {"estimates": True}):
     sched, _ = E.scope_sched(toggles)
     for over in ({"u": 0.5}, {"u": 0.9, "demand_on": True, "demand_g": 0.0}, {"u": 0.7, "k_drift": -0.1, "rate_rev": 0.15, "rate_premium": 0.03}, {"u": 0.9, "demand_on": True, "demand_g": 0.8, "revolver_in_cash": True}, {"u": 1.0, "train_end": 0.3, "ramp_year": 2028, "opex_pct": 0.25, "loss_share": 0.21, "loss_year": 2027.5, "rate_pay": 0.06}):
         p = dict(E.BASE, **over)

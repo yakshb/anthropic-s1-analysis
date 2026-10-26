@@ -56,6 +56,14 @@ role_pass = pd.read_csv(DATA_JEV / "counterparty_role_passages.csv")
 manual = pd.read_csv(DATA_JEV / "manual_checks.csv")
 manual_ok = int(manual.agrees.sum())
 THEMES = list(themes.index)
+THEME_NAMES = {
+    "compute_supply": "compute supply", "compute_commitments": "compute commitments", "capital_access": "access to capital",
+    "csp_conflicts": "supplier conflicts of interest", "revenue_customers": "revenue and customers", "competition": "competition",
+    "model_execution": "model execution", "safety_misuse": "AI safety and misuse", "regulation": "regulation", "ip_litigation": "IP litigation",
+    "cyber_privacy": "cybersecurity and privacy", "talent": "talent", "governance": "governance", "accounting_tax": "accounting and tax",
+    "stock_market": "share ownership and market", "international_macro": "international and macro", "operations_general": "general operations",
+}
+TN = lambda k: THEME_NAMES.get(k, k.replace("_", " "))
 ROLES = ["investor", "financing_source", "supplier", "lessor", "customer", "distribution_channel", "competitor"]
 SECTIONS = [c for c in ["PROSPECTUS SUMMARY", "USE OF PROCEEDS", "CAPITALIZATION", "MD&A", "BUSINESS", "GOVERNANCE", "RELATED PERSON TRANSACTIONS",
                         "DESCRIPTION OF CAPITAL STOCK", "SHARES ELIGIBLE FOR FUTURE SALE", "FINANCIAL STATEMENTS", "PART II"] if c in set(ev.section)]
@@ -84,11 +92,11 @@ for r in risks.itertuples():
 hits = ev[THEMES] >= 0.7
 for th in THEMES:
     rs = risks[risks.theme == th]
-    src(f"theme:{th}", f"Theme: {th.replace('_', ' ')}", f"{len(rs)} risk factors", *[f"{x.rid} (p. {x.page}, {x.words:,} words): {x.heading}" for x in rs.itertuples()])
+    src(f"theme:{th}", f"Theme: {TN(th)}", f"{len(rs)} risk factors", *[f"{x.rid} (p. {x.page}, {x.words:,} words): {x.heading}" for x in rs.itertuples()])
     for sec in SECTIONS:
         pids = list(ev.index[(ev.section == sec) & hits[th]])
         if pids:
-            src(f"ev:{th}|{sec}", f"{th.replace('_', ' ')} × {sec}", f"{len(pids)} passages Jev judged to carry a fact for this theme (p ≥ 0.7), highest first",
+            src(f"ev:{th}|{sec}", f"{TN(th)} × {sec}", f"{len(pids)} passages Jev judged to carry a fact for this theme (p ≥ 0.7), highest first",
                 *[f"[p. {F.passage_by_pid[pid]['page']} · p={ev.loc[pid, th]:.2f}] " + F.passage_by_pid[pid]["text"] for pid in sorted(pids, key=lambda x: -ev.loc[x, th])])
 for name in roles_counts.index:
     d = role_pass[role_pass.counterparty == name]
@@ -116,7 +124,7 @@ def pyfig(fid, fig, height):
 
 
 t = themes.copy()
-t["hover"] = [(f"<b>{i.replace('_', ' ')}</b><br>{r.factors} factors · {r.words:,} words ({r.word_share:.1%} of the section)<br>fact-bearing passages: {r.evidence_passages} ({r.evidence_share:.1%}); "
+t["hover"] = [(f"<b>{TN(i)}</b><br>{r.factors} factors · {r.words:,} words ({r.word_share:.1%} of the section)<br>fact-bearing passages: {r.evidence_passages} ({r.evidence_share:.1%}); "
                f"operating sections only {r.evidence_share_operating:.1%}<br>index {r.weight_index} · operating {r.weight_index_operating}<br><b>{r.robust_verdict}</b><br>"
                f"specificity {r.specificity:.2f}/3 · peer-shared {r.peer_shared_share:.0%}<br><i>click for its factors</i>") for i, r in t.iterrows()]
 sizes = {"peer-shared share": (12 + 40 * t.peer_shared_share.fillna(0)).tolist(), "specificity": (8 + 14 * t.specificity).tolist(), "uniform": [16] * len(t)}
@@ -125,7 +133,7 @@ cats = [c for c in VERDICT_COLOR if c in set(t.robust_verdict)]
 pos = {th: i for i, th in enumerate(t.index)}
 for c in cats:
     sub = t[t.robust_verdict == c]
-    fig.add_trace(go.Scatter(x=sub.evidence_share * 100, y=sub.word_share * 100, mode="markers+text", text=[s.replace("_", " ") for s in sub.index], textposition="top center", textfont=dict(size=10),
+    fig.add_trace(go.Scatter(x=sub.evidence_share * 100, y=sub.word_share * 100, mode="markers+text", text=[TN(s) for s in sub.index], textposition="top center", textfont=dict(size=10),
                              marker=dict(size=[sizes["peer-shared share"][pos[i]] for i in sub.index], color=VERDICT_COLOR[c], opacity=0.85), name=c, customdata=sub.hover, hovertemplate="%{customdata}<extra></extra>",
                              meta=list(sub.index)))
 lim = float(max(t.evidence_share.max(), t.word_share.max(), t.evidence_share_operating.max()) * 100 * 1.15)
@@ -142,8 +150,8 @@ FIG_WORDS = pyfig("words", fig, 600)
 cnt = pd.DataFrame({th: hits[th].groupby(ev.section).sum() for th in THEMES}).T.reindex(index=THEMES, columns=SECTIONS).fillna(0)
 meanp = pd.DataFrame({th: ev[th].groupby(ev.section).mean() for th in THEMES}).T.reindex(index=THEMES, columns=SECTIONS).fillna(0)
 share = cnt.div(cnt.sum(axis=1).replace(0, np.nan), axis=0).fillna(0) * 100
-tl = [s.replace("_", " ") for s in THEMES]
-hov = np.array([[f"<b>{th.replace('_', ' ')}</b> × {sec}<br>{int(cnt.loc[th, sec])} passages at p ≥ 0.7 · {share.loc[th, sec]:.0f}% of the theme's evidence<br>mean probability {meanp.loc[th, sec]:.2f}<br><i>click to read them</i>" for sec in SECTIONS] for th in THEMES])
+tl = [TN(s) for s in THEMES]
+hov = np.array([[f"<b>{TN(th)}</b> × {sec}<br>{int(cnt.loc[th, sec])} passages at p ≥ 0.7 · {share.loc[th, sec]:.0f}% of the theme's evidence<br>mean probability {meanp.loc[th, sec]:.2f}<br><i>click to read them</i>" for sec in SECTIONS] for th in THEMES])
 fig = go.Figure(go.Heatmap(z=cnt.values, x=SECTIONS, y=tl, text=cnt.values.astype(int), texttemplate="%{text}", textfont=dict(size=10), customdata=hov, meta=THEMES,
                            hovertemplate="%{customdata}<extra></extra>", colorbar=dict(title=dict(text="passages"), thickness=10), xgap=2, ygap=2))
 fig.update_layout(xaxis=dict(tickangle=-30), yaxis=dict(autorange="reversed"),
@@ -155,19 +163,19 @@ FIG_EVIDENCE = pyfig("evidence", fig, 640)
 
 r = risks.copy()
 r["short"] = r.heading.str.slice(0, 90) + np.where(r.heading.str.len() > 90, "…", "")
-r["hover"] = [(f"<b>{x.rid}</b> · {x.group_short} · p. {x.page}<br>{esc(str(x.heading))[:200]}<br>{x.words:,} words · {x.theme.replace('_', ' ')} · specificity {x.specificity:.2f} · already happened {x.materialized:.2f}<br>"
+r["hover"] = [(f"<b>{x.rid}</b> · {x.group_short} · p. {x.page}<br>{esc(str(x.heading))[:200]}<br>{x.words:,} words · {TN(x.theme)} · specificity {x.specificity:.2f} · already happened {x.materialized:.2f}<br>"
                f"{'CoreWeave counterpart' if x.peer_shared else 'no CoreWeave counterpart'}<br><i>click to read it</i>") for x in r.itertuples()]
-fig = go.Figure(go.Treemap(labels=["Risk Factors"] + THEMES + r.rid.tolist(), parents=[""] + ["Risk Factors"] * len(THEMES) + r.theme.tolist(), values=[0] + [0] * len(THEMES) + r.words.tolist(),
-                           text=[""] + [f"{th.replace('_', ' ')}<br>{int(themes.loc[th, 'words']):,} words" for th in THEMES] + r.short.tolist(),
-                           customdata=["All 88 risk factors"] + [f"<b>{th.replace('_', ' ')}</b><br>{int(themes.loc[th, 'factors'])} factors · {themes.loc[th, 'robust_verdict']}" for th in THEMES] + r.hover.tolist(),
+fig = go.Figure(go.Treemap(ids=["root"] + THEMES + r.rid.tolist(), labels=["Risk Factors"] + [TN(th) for th in THEMES] + r.rid.tolist(), parents=[""] + ["root"] * len(THEMES) + r.theme.tolist(), values=[0] + [0] * len(THEMES) + r.words.tolist(),
+                           text=[""] + [f"{TN(th)}<br>{int(themes.loc[th, 'words']):,} words" for th in THEMES] + r.short.tolist(),
+                           customdata=["All 88 risk factors"] + [f"<b>{TN(th)}</b><br>{int(themes.loc[th, 'factors'])} factors · {themes.loc[th, 'robust_verdict']}" for th in THEMES] + r.hover.tolist(),
                            hovertemplate="%{customdata}<extra></extra>", branchvalues="remainder", textinfo="text", pathbar=dict(visible=True), maxdepth=2,
                            marker=dict(colors=[np.nan] + [themes.loc[th, "specificity"] for th in THEMES] + r.specificity.tolist(), cmin=0, cmax=3, colorbar=dict(title=dict(text="specificity"), thickness=10))))
 FIG_FACTORS = pyfig("factors", fig, 680)
 
 ts_ = themes.sort_values("words")
 fig = go.Figure()
-fig.add_trace(go.Bar(y=[s.replace("_", " ") for s in ts_.index], x=ts_.peer_shared_words, orientation="h", name="factors with a CoreWeave counterpart", marker_color="#8a94a6", meta=list(ts_.index), hovertemplate="%{y}: %{x:,} peer-shared words<extra></extra>"))
-fig.add_trace(go.Bar(y=[s.replace("_", " ") for s in ts_.index], x=ts_.words - ts_.peer_shared_words, orientation="h", name="factors with no counterpart", marker_color="#3b7ddd", meta=list(ts_.index), hovertemplate="%{y}: %{x:,} distinctive words<extra></extra>"))
+fig.add_trace(go.Bar(y=[TN(s) for s in ts_.index], x=ts_.peer_shared_words, orientation="h", name="factors with a CoreWeave counterpart", marker_color="#8a94a6", meta=list(ts_.index), hovertemplate="%{y}: %{x:,} peer-shared words<extra></extra>"))
+fig.add_trace(go.Bar(y=[TN(s) for s in ts_.index], x=ts_.words - ts_.peer_shared_words, orientation="h", name="factors with no counterpart", marker_color="#3b7ddd", meta=list(ts_.index), hovertemplate="%{y}: %{x:,} distinctive words<extra></extra>"))
 fig.update_layout(barmode="stack", xaxis_title="words in the Risk Factors section", legend=dict(orientation="h", y=-0.14))
 FIG_GENRE = pyfig("genre", fig, 560)
 
@@ -218,7 +226,10 @@ v = lambda k: E.FACTS[k].value
 B = E.BRIDGES["H1 2026"]
 S0 = E.SCEN.set_index("utilization")
 SL = E.SCEN_LOSS.set_index("utilization")
-firm = float(E.RECON.loc[E.RECON.check.str.startswith("Of which firm"), "value_busd"].iloc[0])
+firm = float(E.FIRM_TOTAL)
+upper = float(E.RECON.loc[E.RECON.check.str.startswith("Upper bound"), "value_busd"].iloc[0])
+SF = E.SCEN_FULL.set_index("utilization")
+g90F = SF.loc[0.9]
 DATA = {
     "years": E.YEARS,
     "bridges": {p: {**{k: v_ for k, v_ in b.items() if k != "steps"}, "steps": [{"label": s[0], "value": s[1], "kind": s[2], "src": f"fact:{s[3]}_{p}" if s[3] and f"{s[3]}_{p}" in E.FACTS else (f"fact:{s[3]}" if s[3] else None)} for s in b["steps"]]}
@@ -228,7 +239,7 @@ DATA = {
     "ledger": [{"id": l[0], "category": l[1], "item": l[2], "status": l[4], "window": l[6], "basis": l[7], "base": l[9], "toggle": l[10],
                 "amount": {str(rr): float(dict((x[0], x[3]) for x in E.LEDGERS[rr])[l[0]]) for rr in E.RAMPS},
                 "sched": {str(rr): [round(float(x_), 4) for x_ in dict((x[0], x[5]) for x in E.LEDGERS[rr])[l[0]]] for rr in E.RAMPS}} for l in E.LEDGER],
-    "ramps": [str(rr) for rr in E.RAMPS], "base": E.BASE, "obs": E.OBS, "assumptions": E.ASSUMPTIONS, "firm_total": firm,
+    "ramps": [str(rr) for rr in E.RAMPS], "base": E.BASE, "obs": E.OBS, "assumptions": E.ASSUMPTIONS, "firm_total": firm, "upper_total": upper,
     "observed_h2_2026_compute": E.qt["compute"]["Q2 2026"] * 2 / 1000,
     "cust": {"n10m": v("cust_10m_sep26"), "n1m": v("cust_1m_sep26"), "n100k": v("cust_100k_sep26"), "small_m": v("cust_small_users"), "top5_q3": E.TOP5_Q3,
              "series": [{"date": d_, "n": v(k), "src": f"fact:{k}"} for d_, k in [("2023-12-31", "cust_100k_dec23"), ("2024-12-31", "cust_100k_dec24"), ("2025-03-31", "cust_100k_mar25"), ("2025-06-30", "cust_100k_jun25"),
@@ -240,17 +251,22 @@ DATA = {
     "pyfigs": PYFIGS,
 }
 
+PRESS = [("Bloomberg, October 20, 2026", "https://www.bloomberg.com/news/articles/2026-10-20/anthropic-could-spend-750-billion-on-computing-costs-wsj-says",
+          "citing The Wall Street Journal: a draft prospectus put possible computing spend at up to $750B, including deals still under negotiation"),
+         ("The Next Web, October 21, 2026", "https://thenextweb.com/news/anthropic-s-1-750bn-compute-80-7bn-loss",
+          "summarizing the WSJ and Axios: more than $600B of future infrastructure costs, plus about $150B in deals under negotiation")]
+
 # =================================================================== computed findings and takeaways
-over = [s.replace("_", " ") for s in themes.index[themes.robust_verdict.str.startswith("over")]]
-under = [s.replace("_", " ") for s in themes.index[themes.robust_verdict.str.startswith("under")]]
-dep = [s.replace("_", " ") for s in themes.index[themes.robust_verdict == "depends on the evidence base"]]
+over = [TN(s) for s in themes.index[themes.robust_verdict.str.startswith("over")]]
+under = [TN(s) for s in themes.index[themes.robust_verdict.str.startswith("under")]]
+dep = [TN(s) for s in themes.index[themes.robust_verdict == "depends on the evidence base"]]
 peer_share = risks[risks.peer_shared].words.sum() / risks.words.sum()
 mat_share = risks[risks.materialized >= 0.5].words.sum() / risks.words.sum()
 q1, q5 = eff.iloc[1], eff.iloc[5]
 g90 = S0.loc[0.9]
 g90L = SL.loc[0.9]
 ch_after = (B["revenue"] - B["compute"] - B["channel_floor"]) / B["revenue"]
-listj = lambda xs: ", ".join(xs[:-1]) + (" and " + xs[-1] if len(xs) > 1 else (xs[0] if xs else "none"))
+listj = lambda xs: "none" if not xs else xs[0] if len(xs) == 1 else f"{xs[0]} and {xs[1]}" if len(xs) == 2 else ", ".join(xs[:-1]) + ", and " + xs[-1]
 fmt_g = lambda g: "not reachable within capacity" if (g is None or (isinstance(g, float) and math.isnan(g))) else f"{g:.0%} a year"
 ev_fs = cnt.sum()
 top_sec = ev_fs.sort_values(ascending=False)
@@ -264,10 +280,10 @@ FINDINGS = [
     ("Compute efficiency", f"Revenue per compute dollar up {q5.rev_per_compute / q1.rev_per_compute:.1f}× in a year",
      f"From ${q1.rev_per_compute:.2f} in Q2 2025 to ${q5.rev_per_compute:.2f} in Q2 2026. About half of the {q5.revenue / q1.revenue:.0f}× revenue growth came with more compute. "
      "The gains arrived in steps after model releases. The marginal return on new compute fell from Q1 to Q2 2026.", "efficiency"),
-    ("Contracted compute", f"Demand must grow about {g90.demand_growth_for_both:.0%} a year to carry the contracts",
-     f"{money(E.RECON.iloc[0].value_busd)} is contracted, of which {money(firm)} is firm. If demand fills capacity at H1 2026 economics, NPV is {money(g90.npv_at_observed_busd)}. "
-     f"If revenue is limited by demand instead, it must grow about {g90.demand_growth_for_npv:.0%} a year from the ${E.OBS['q2_run_rate']:.0f}B Q2 2026 run-rate for NPV ≥ 0. "
-     f"It must grow about {g90.demand_growth_for_covenant:.0%} a year to keep cash above the $5B covenant.", "dcf"),
+    ("Contracted compute", f"${firm:,.0f}B firm, up to ${upper:,.0f}B; demand must grow about {g90.demand_growth_for_both:.0%} a year",
+     f"Firm compute commitments total about ${firm:,.0f}B. The ${upper:,.0f}B upper bound adds deals that can be cancelled or depend on the vendor, and may double-count amended contracts. "
+     f"Press reports on draft prospectuses put the figure between $600B and $750B. If revenue grows only as fast as demand, it must compound about {g90.demand_growth_for_both:.0%} a year from the ${E.OBS['q2_run_rate']:.0f}B Q2 2026 run-rate "
+     f"to carry the firm commitments, or about {g90F.demand_growth_for_both:.0%} if every contracted deal runs.", "dcf"),
     ("Customers", f"{v('rev_100k_share_h1_26'):.0f}% of revenue from $100K+ customers; top five down to {E.TOP5_Q3:.0%}",
      f"About {v('cust_10m_sep26'):.0f} customers spend $10M+ a year. The top five fell from {1 - v('outside_top5_q1_26') / 100:.0%} of revenue in Q1 2026 to {E.TOP5_Q3:.0%} in Q3. "
      f"Losing the top five's revenue from 2028 raises the demand growth needed to about {g90L.demand_growth_for_both:.0%} a year.", "customers"),
@@ -288,9 +304,9 @@ TK = {
                    f"The quarterly gain went from {eff.efficiency_qoq.iloc[2]:.0%} to {eff.efficiency_qoq.iloc[3]:.0%}, then jumped {eff.efficiency_qoq.iloc[4]:.0%} after Opus 4.5. "
                    f"The incremental return fell from {eff.incremental_ratio.iloc[4]:.2f} to {eff.incremental_ratio.iloc[5]:.2f} revenue dollars per added compute dollar. "
                    "Read the next releases as the test of whether the step pattern continues."),
-    "dcf": (f"Capacity is not the constraint; demand is. If demand fills the contracted capacity at H1 2026 revenue per serving dollar, the contracts are worth {money(g90.npv_at_observed_busd)} at the split discount rates. "
-            f"If revenue grows only as fast as demand, it must compound at about {g90.demand_growth_for_npv:.0%} a year from today's run-rate just to earn the discount rate. "
-            f"It must compound at about {g90.demand_growth_for_covenant:.0%} to stay above the liquidity covenant. That is well below the last year's growth but far above anything sustained by a company this size. "
+    "dcf": (f"Capacity is not the constraint; demand is. The firm commitments, about ${firm:,.0f}B, need revenue to compound about {g90.demand_growth_for_npv:.0%} a year from today's run-rate to earn the discount rate, "
+            f"and the liquidity covenant holds from about {g90.demand_growth_for_covenant:.0%}. If every contracted deal runs, up to ${upper:,.0f}B, the bar rises to about {g90F.demand_growth_for_both:.0%} a year. "
+            f"If demand instead filled all the firm capacity at H1 2026 revenue per serving dollar, the contracts would be worth {money(g90.npv_at_observed_busd)}. "
             "The utilization needed depends on an assumed H1 2026 level and is shown relative to it."),
     "customers": (f"The revenue base broadened through 2026. The top five's share fell from {1 - v('outside_top5_q1_26') / 100:.0%} to {E.TOP5_Q3:.0%} while each top-five customer still set a record. "
                   f"Spending is concentrated: {v('rev_100k_share_h1_26'):.0f}% of H1 2026 revenue came from $100K+ customers. The filing gives counts by spend band but not revenue by band, "
@@ -302,7 +318,7 @@ TK = {
                  "Capital access, governance and stock themes draw heavily on the financial statements and capital-stock sections, which is why the index is reported with and without them."),
     "factors": (f"Two thirds of the risk-factor words ({mat_share:.0%}) sit in factors that describe something that has already happened: the settlement, compute shortfalls, conflicts, export restrictions. "
                 f"The average factor scores {risks.specificity.mean():.2f} on a 0–3 specificity scale. The most specific factors are about government sales, data collection, safety commitments and compute commitments."),
-    "genre": (f"About {peer_share:.0%} of risk-factor words sit in factors with a near-twin in CoreWeave's S-1 from March 2025. The least shared themes, {listj([s.replace('_', ' ') for s in themes.sort_values('peer_shared_share').index[:3]])}, "
+    "genre": (f"About {peer_share:.0%} of risk-factor words sit in factors with a near-twin in CoreWeave's S-1 from March 2025. The least shared themes, {listj([TN(s) for s in themes.sort_values('peer_shared_share').index[:3]])}, "
               "are where Anthropic's disclosure is its own."),
     "agreements": (f"Jev's reading of each agreement matches the ledger's treatment in {int(XC.agrees.sum())} of {len(XC)} cases, and its amount matches the regex in {int(XC.amount_agrees.sum())} of {len(XC)}. "
                    "Microsoft and Amazon read as fixed regardless of usage, SpaceXAI as cancelable on notice, and Nscale and Lambda as dependent on the vendor's own financing."),
@@ -420,7 +436,7 @@ BODY = f"""<title>Anthropic S-1 Economics</title>
 <header class="masthead">
   <p class="eyebrow">Independent analysis · Anthropic, PBC · Form S-1 filed {E.F.filed}</p>
   <h1>Anthropic S-1 Economics</h1>
-  <p class="dek">What the registration statement shows about margins, compute efficiency, the economics of more than $800 billion of contracted compute, and customer concentration, read figure by figure from the filing.</p>
+  <p class="dek">What the registration statement shows about margins, compute efficiency, the economics of roughly $680–855 billion of contracted compute, and customer concentration, read figure by figure from the filing.</p>
   <p class="meta">Built from the public S-1 on SEC EDGAR (CIK 2130357) · {len(E.FACTS)} figures extracted with their quotes · {JEV_TOTAL['judgments']:,} reading judgments by TypeSafe&#39;s Jev · market inputs as of {H_['as_of']} · not affiliated with or endorsed by Anthropic; not investment advice.</p>
 </header>
 <div class="layout">
@@ -488,7 +504,8 @@ BODY = f"""<title>Anthropic S-1 Economics</title>
           "Five steps. 3.1 reconciles the commitments into one ledger. 3.2 lays out when they are paid. 3.3 sets the discount rates. 3.4 values the contracts and solves for the demand growth they need, with live controls. 3.5 stresses the result.")}
 
   <h3 id="ledger" class="sub">3.1 Reconciled ledger</h3>
-  <p class="note">Commitments come from different notes and dates: purchase commitments at June 30 (Note 13), leases already running and leases not yet started (Note 7), and agreements signed after June 30 (Note 17). Named agreements are mapped into those categories, and estimates the filing excludes are kept apart. The total includes agreements that can be cancelled or that depend on the vendor; the firm subtotal removes the ones that can be identified. The reconciliation checks on the right show where the categories may overlap.</p>
+  <p class="note">Commitments come from different notes and dates: purchase commitments at June 30 (Note 13), leases already running and leases not yet started (Note 7), and agreements signed after June 30 (Note 17). Named agreements are mapped into those categories, and estimates the filing excludes are kept apart. The result is a range, not a single number. Firm commitments are about <b>${firm:,.0f}B</b>, the base case for everything below. The upper bound of <b>${upper:,.0f}B</b> adds SpaceXAI after its notice period and the Nscale and Lambda deals that depend on those vendors&#39; financing. The filing leaves its own total blank, and amendments signed after June 30 may restate amounts already counted, so the upper bound is a ceiling.</p>
+  <div class="press"><span class="clabel">Cross-check: press reports, not the filing</span><p>Reporting on draft prospectuses before the public filing put the figure at more than $600B, or up to about $750B including deals still under negotiation: {" · ".join(f'<a href="{u}" target="_blank" rel="noopener">{esc(n)}</a> ({esc(d)})' for n, u, d in PRESS)}. The firm figure sits inside that range.</p></div>
   <div class="grid2"><div id="ledger-table" class="tablewrap scroll"></div><div id="recon-table" class="tablewrap scroll"></div></div>
 
   <h3 id="calendar" class="sub">3.2 Payment calendar</h3>
@@ -647,6 +664,9 @@ BODY = f"""<title>Anthropic S-1 Economics</title>
         <li>Peer betas, market capitalizations and debt for {", ".join(H_["peers"].company.str.replace(r" Class A Common Stock|,? Inc\.?| Corporation| Technologies| Platforms|\.com", "", regex=True).str.strip())}: company profiles and balance sheets</li>
       </ul>
       <p class="src-note">Retrieved through <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank" rel="noopener">Financial Modeling Prep</a>. The payment-side rate uses the S-1&#39;s own lease rate (Note 7). See <a href="#rates">section 3.3</a>.</p></div>
+    <div><h4>Press reports used as a cross-check</h4>
+      <ul>{"".join(f'<li><a href="{u}" target="_blank" rel="noopener">{esc(n)}</a>: {esc(d)}</li>' for n, u, d in PRESS)}</ul>
+      <p class="src-note">These describe draft prospectuses and are compared with the ledger in <a href="#ledger">section 3.1</a>. No figure in the model comes from them.</p></div>
     <div><h4>Reading judgments</h4>
       <p><a href="https://docs.typesafe.ai" target="_blank" rel="noopener">TypeSafe</a>&#39;s Jev: risk-factor typing, evidence, peer matching, agreements and counterparty roles. See <a href="#jev">section 5</a>.</p></div>
   </div>
