@@ -1,6 +1,6 @@
 # Anthropic S-1 Economics
 
-An independent, figure-by-figure reading of Anthropic, PBC's Form S-1 (filed October 26, 2026, SEC CIK 2130357). It covers margins, compute efficiency, the economics of more than $800 billion of contracted compute, customer concentration, and how the filing distributes its risk disclosure.
+An independent, figure-by-figure reading of Anthropic, PBC's [Form S-1](https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/anthropicpbc-sx1.htm) (filed October 26, 2026, SEC CIK 2130357). It covers margins, compute efficiency, the economics of more than $800 billion of contracted compute, customer concentration, and how the filing distributes its risk disclosure.
 
 **Interactive report:** https://yakshb.github.io/anthropic-s1-analysis/ (also in [`docs/index.html`](docs/index.html)).
 
@@ -87,10 +87,6 @@ The first run downloads the S-1 from SEC EDGAR into `edgar_cache/`, which is git
 - **The reverse DCF** treats compute payments as debt-like and discounts them at the filing's own lease rate. Revenue is discounted at an unlevered cost of capital built from listed peers. The model solves for the demand growth and the price-efficiency at which NPV reaches zero.
 - **Limitations** are listed in the report's Appendix A. In particular, the filing gives no physical capacity units, leaves its own aggregate commitment figures blank, and does not split training compute from other R&D. Assumptions are listed in Appendix B and `data/model/model_assumptions.csv`.
 
-## Publishing the report
-
-`docs/index.html` is served by GitHub Pages from `main` / `/docs` at https://yakshb.github.io/anthropic-s1-analysis/. Every push to `main` republishes it, so rebuild with `src/s1_dashboard.py` before pushing.
-
 ## Contributing
 
 Corrections and extensions are welcome.
@@ -101,10 +97,40 @@ Corrections and extensions are welcome.
 - **Never commit keys.** `.env.local` and every other `.env*` file except `.env.example` are git-ignored.
 - After any change, rebuild with `src/s1_economics.py` and `src/s1_dashboard.py` so `docs/index.html` and `data/` stay in sync with the code.
 
-## License
-
-MIT, see [LICENSE](LICENSE). The S-1 text quoted in the report and datasets comes from a public SEC filing.
-
 ## Sources
 
-SEC EDGAR: Anthropic, PBC Form S-1 (CIK 2130357), filed October 26, 2026. Peer risk-factor headings come from CoreWeave, Inc.'s Form S-1 (March 3, 2025). Market inputs are from Financial Modeling Prep. Reading judgments are by [TypeSafe](https://docs.typesafe.ai)'s Jev.
+### Primary filing
+
+- **Anthropic, PBC, Form S-1 registration statement**, filed with the SEC on October 26, 2026. CIK 2130357, accession no. 0001628280-26-067168.
+  - Document: [anthropicpbc-sx1.htm](https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/anthropicpbc-sx1.htm)
+  - Filing index, with exhibits: [0001628280-26-067168](https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/0001628280-26-067168-index.html)
+  - Company filings on EDGAR: [Anthropic, PBC](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0002130357&type=S-1)
+
+  Every figure, quote and passage in the report and in `data/` comes from this document. The pipeline locates it through the [EDGAR submissions API](https://data.sec.gov/submissions/CIK0002130357.json).
+
+### Comparison filing
+
+- **CoreWeave, Inc., Form S-1 registration statement**, filed with the SEC on March 3, 2025. CIK 1769628, accession no. 0001193125-25-044231.
+  - Document: [d899798ds1.htm](https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798ds1.htm)
+  - Filing index: [0001193125-25-044231](https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/0001193125-25-044231-index.html)
+
+  Its 69 risk-factor headings are the comparison set for the industry-boilerplate analysis (report section 9, `data/jev/peer_matches.csv`).
+
+### Market data for the discount rates
+
+Retrieved through [Financial Modeling Prep](https://site.financialmodelingprep.com/developer/docs) and cached in `data/model/hurdle_inputs.csv`:
+
+- **10-year US Treasury yield**: 5.00% on October 23, 2026, from the US Treasury's [daily par yield curve](https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&field_tdr_date_value_month=202610).
+- **US equity risk premium**: 4.46%, from FMP's market-risk-premium country table. The source gives no as-of date; it was retrieved on October 26, 2026.
+- **Peer betas and capital structure**: five-year monthly betas, market capitalizations and total debt from FMP company profiles and balance sheets for Microsoft, Alphabet, Amazon, Meta, Oracle, Palantir, Snowflake, ServiceNow, Datadog and CoreWeave.
+
+The payment-side discount rate uses no outside data. It is the lease discount rate disclosed in Note 7 of the Anthropic S-1.
+
+### Tools
+
+- **[TypeSafe](https://docs.typesafe.ai) Jev** made the reading judgments: risk-factor typing, evidence, peer matching, and agreement and counterparty roles.
+- **[Plotly](https://plotly.com/javascript/)** renders the report's charts, loaded from cdnjs. The fonts are Source Serif 4, Public Sans and IBM Plex Mono from [Google Fonts](https://fonts.google.com).
+
+## License
+
+MIT, see [LICENSE](LICENSE). The S-1 text quoted in the report and datasets comes from public SEC filings.
