@@ -126,10 +126,9 @@ Retrieved through [Financial Modeling Prep](https://site.financialmodelingprep.c
 
 The payment-side discount rate uses no outside data. It is the lease discount rate disclosed in Note 7 of the Anthropic S-1.
 
-### Tools
+### Reading judgments
 
-- **[TypeSafe](https://docs.typesafe.ai) Jev** made the reading judgments: risk-factor typing, evidence, peer matching, and agreement and counterparty roles.
-- **[Plotly](https://plotly.com/javascript/)** renders the report's charts, loaded from cdnjs. The fonts are Source Serif 4, Public Sans and IBM Plex Mono from [Google Fonts](https://fonts.google.com).
+- **[TypeSafe](https://docs.typesafe.ai)'s Jev** made the reading judgments: risk-factor typing, evidence, peer matching, and agreement and counterparty roles.
 
 ## License
 

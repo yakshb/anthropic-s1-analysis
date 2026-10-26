@@ -382,7 +382,7 @@ TOC = [
         ("roles", "11  Counterparty roles", []),
         ("financing", "12  Financing instruments", []),
     ]),
-    ("Appendix", None, [("limits", "A  Method and limitations"), ("assumptions", "B  Assumptions"), ("figures", "C  Every extracted figure")]),
+    ("Appendix", None, [("limits", "A  Method and limitations"), ("assumptions", "B  Assumptions"), ("figures", "C  Every extracted figure"), ("sources", "Sources")]),
 ]
 
 
@@ -405,6 +405,9 @@ CSS = (WEB / "s1_dashboard.css").read_text()
 JS = (WEB / "s1_dashboard.js").read_text()
 MODEL = (WEB / "s1_model.js").read_text()
 dump = lambda o: json.dumps(o, default=lambda x: (None if (isinstance(x, float) and math.isnan(x)) else (x.item() if hasattr(x, "item") else str(x)))).replace("</", "<\\/").replace("NaN", "null")
+import datetime as _dt
+long_date = lambda d: (lambda x: f"{x:%B} {x.day}, {x.year}")(_dt.date.fromisoformat(str(d)[:10]))
+FILED_LONG, ASOF_LONG = long_date(E.F.filed), long_date(H_["as_of"])
 PLOTLY_CDN = "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/4.1.1/plotly.min.js"
 
 BODY = f"""<title>Anthropic S-1 Economics</title>
@@ -619,7 +622,36 @@ BODY = f"""<title>Anthropic S-1 Economics</title>
 <section id="limits" class="sec"><h2 class="plain">A  Method and limitations</h2><ol class="limits">{"".join(f"<li>{esc(x)}</li>" for x in LIMITS)}</ol></section>
 <section id="assumptions" class="sec"><h2 class="plain">B  Assumptions</h2><div class="tablewrap"><table class="t"><thead><tr><th>Assumption</th><th class="num">Base value</th><th>Why</th></tr></thead><tbody>{assump_rows}</tbody></table></div></section>
 <section id="figures" class="sec"><h2 class="plain">C  Every extracted figure</h2><p class="note">{len(E.FACTS)} figures, each with the sentence that states it. Click a row to read it.</p><div class="tablewrap scroll tall"><table class="t"><thead><tr><th>Figure</th><th class="num">Value</th><th>Unit</th><th>Where</th></tr></thead><tbody>{facts_rows}</tbody></table></div></section>
-<footer class="foot">Source: SEC EDGAR, Anthropic, PBC Form S-1 (CIK 2130357), filed {E.F.filed}; peer headings from CoreWeave, Inc. Form S-1 (March 3, 2025); market inputs via Financial Modeling Prep. Reading judgments by TypeSafe&#39;s Jev. This is an independent analysis of a public filing. It is not affiliated with or endorsed by Anthropic and is not investment advice.</footer>
+<footer class="foot" id="sources">
+  <h2 class="plain">Sources</h2>
+  <div class="src-grid">
+    <div><h4>Primary filing</h4>
+      <p>Anthropic, PBC, Form S-1 registration statement, filed with the SEC on {FILED_LONG}. CIK 2130357, accession no. 0001628280-26-067168.</p>
+      <ul>
+        <li><a href="https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/anthropicpbc-sx1.htm" target="_blank" rel="noopener">S-1 document</a></li>
+        <li><a href="https://www.sec.gov/Archives/edgar/data/2130357/000162828026067168/0001628280-26-067168-index.html" target="_blank" rel="noopener">Filing index, with exhibits</a></li>
+        <li><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0002130357&amp;type=S-1" target="_blank" rel="noopener">Anthropic, PBC on EDGAR</a></li>
+      </ul>
+      <p class="src-note">Every figure, quote and passage in this report comes from this filing.</p></div>
+    <div><h4>Comparison filing</h4>
+      <p>CoreWeave, Inc., Form S-1 registration statement, filed with the SEC on March 3, 2025. CIK 1769628, accession no. 0001193125-25-044231.</p>
+      <ul>
+        <li><a href="https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/d899798ds1.htm" target="_blank" rel="noopener">S-1 document</a></li>
+        <li><a href="https://www.sec.gov/Archives/edgar/data/1769628/000119312525044231/0001193125-25-044231-index.html" target="_blank" rel="noopener">Filing index</a></li>
+      </ul>
+      <p class="src-note">Its risk-factor headings are the comparison set in <a href="#genre">section 9</a>.</p></div>
+    <div><h4>Market data for the discount rates</h4>
+      <ul>
+        <li>10-year US Treasury yield, {H_["rf"]:.2%} on {ASOF_LONG}: <a href="https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve&amp;field_tdr_date_value_month=202610" target="_blank" rel="noopener">US Treasury daily par yield curve</a></li>
+        <li>US equity risk premium, {H_["erp"]:.2%}: market-risk-premium country table (undated in source)</li>
+        <li>Peer betas, market capitalizations and debt for {", ".join(H_["peers"].company.str.replace(r" Class A Common Stock|,? Inc\.?| Corporation| Technologies| Platforms|\.com", "", regex=True).str.strip())}: company profiles and balance sheets</li>
+      </ul>
+      <p class="src-note">Retrieved through <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank" rel="noopener">Financial Modeling Prep</a>. The payment-side rate uses the S-1&#39;s own lease rate (Note 7). See <a href="#rates">section 3.3</a>.</p></div>
+    <div><h4>Reading judgments</h4>
+      <p><a href="https://docs.typesafe.ai" target="_blank" rel="noopener">TypeSafe</a>&#39;s Jev: risk-factor typing, evidence, peer matching, agreements and counterparty roles. See <a href="#jev">section 5</a>.</p></div>
+  </div>
+  <p class="disclaimer">This is an independent analysis of public filings. It is not affiliated with or endorsed by Anthropic and is not investment advice. Code and data: <a href="https://github.com/yakshb/anthropic-s1-analysis" target="_blank" rel="noopener">github.com/yakshb/anthropic-s1-analysis</a>.</p>
+</footer>
 </main></div></div>
 <div id="drawer" role="dialog" aria-label="Source" aria-hidden="true"><div class="d-head"><button class="x" id="d-close" aria-label="Close source panel">×</button><div id="d-title"></div><div id="d-meta"></div></div><div class="d-body" id="d-body"></div></div>
 <script>{MODEL}</script>
