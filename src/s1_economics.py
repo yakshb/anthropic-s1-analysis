@@ -2,7 +2,7 @@
 
 Every filing figure comes from s1_filing (value + quote + page). Every modeling assumption is in ASSUMPTIONS with a
 reason, and is editable in the dashboard. Run directly to write the CSVs:
-    ../.venv/bin/python s1_economics.py
+    python src/s1_economics.py
 """
 import math
 from pathlib import Path
@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from paths import DATA_MODEL
 from s1_filing import filing
 
 HERE = Path(__file__).resolve().parent
@@ -516,14 +517,14 @@ SCEN_LOSS, _, _ = scenarios()
 BASE.clear(); BASE.update(_b)
 
 if __name__ == "__main__":
-    pd.DataFrame([f.row() for f in FACTS.values()]).to_csv(HERE / "anthropic_s1_filing_facts.csv", index=False)
-    pd.DataFrame([{k: v for k, v in b.items() if k != "steps"} for b in BRIDGES.values()]).to_csv(HERE / "anthropic_s1_margin_bridge.csv", index=False)
-    eff.to_csv(HERE / "anthropic_s1_quarterly_efficiency.csv", index=False)
-    ledger.to_csv(HERE / "anthropic_s1_contract_ledger.csv", index=False)
-    pd.concat({f"ramp {r_}y": S_ for r_, S_ in SCHEDS.items()}).round(3).to_csv(HERE / "anthropic_s1_payment_calendar.csv")
-    RECON.to_csv(HERE / "anthropic_s1_ledger_reconciliation.csv", index=False)
-    pd.concat([SCEN.assign(scope="binding (A-E)"), SCEN_STRESS.assign(scope="SpaceXAI cancelled at notice, vendor-conditional excluded"), SCEN_LOSS.assign(scope=f"binding, top-five revenue ({TOP5_Q3:.0%}) lost from 2028")]).to_csv(HERE / "anthropic_s1_utilization_scenarios.csv", index=False)
-    pd.DataFrame([{"key": k, **v} for k, v in ASSUMPTIONS.items()]).to_csv(HERE / "anthropic_s1_model_assumptions.csv", index=False)
+    pd.DataFrame([f.row() for f in FACTS.values()]).to_csv(DATA_MODEL / "filing_facts.csv", index=False)
+    pd.DataFrame([{k: v for k, v in b.items() if k != "steps"} for b in BRIDGES.values()]).to_csv(DATA_MODEL / "margin_bridge.csv", index=False)
+    eff.to_csv(DATA_MODEL / "quarterly_efficiency.csv", index=False)
+    ledger.to_csv(DATA_MODEL / "contract_ledger.csv", index=False)
+    pd.concat({f"ramp {r_}y": S_ for r_, S_ in SCHEDS.items()}).round(3).to_csv(DATA_MODEL / "payment_calendar.csv")
+    RECON.to_csv(DATA_MODEL / "ledger_reconciliation.csv", index=False)
+    pd.concat([SCEN.assign(scope="binding (A-E)"), SCEN_STRESS.assign(scope="SpaceXAI cancelled at notice, vendor-conditional excluded"), SCEN_LOSS.assign(scope=f"binding, top-five revenue ({TOP5_Q3:.0%}) lost from 2028")]).to_csv(DATA_MODEL / "utilization_scenarios.csv", index=False)
+    pd.DataFrame([{"key": k, **v} for k, v in ASSUMPTIONS.items()]).to_csv(DATA_MODEL / "model_assumptions.csv", index=False)
     pd.set_option("display.width", 220); pd.set_option("display.max_colwidth", 90)
     print(f"{len(FACTS)} facts extracted")
     for p_, b in BRIDGES.items():

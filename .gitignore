@@ -14,3 +14,6 @@ venv/
 
 # Publishing copy of the page (same content as docs/index.html, without the document skeleton)
 anthropic_s1_dashboard_artifact.html
+
+# Build byproducts (e.g. the claude.ai publishing copy of the report)
+build/

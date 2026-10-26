@@ -1,8 +1,8 @@
 """Standalone Jev pass: per-passage counterparty-role probabilities for Anthropic's S-1.
 
-Writes anthropic_s1_counterparty_role_passages.csv (one row per (counterparty, passage) with seven role Nouls) so the
-dashboard can draw a probability gradient instead of a thresholded count. Pure Python; run from this folder:
-    ../.venv/bin/python s1_role_passages.py
+Writes data/jev/counterparty_role_passages.csv (one row per (counterparty, passage) with seven role Nouls) so the
+dashboard can draw a probability gradient instead of a thresholded count. Pure Python; run from the repository root:
+    python src/s1_role_passages.py
 """
 import json
 import os
@@ -18,13 +18,12 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from typesafe_sdk import Noul, NoulCriteria, TypeSafeClient
 
-for env_file in (Path(".env.local"), Path("../.env.local")):
-    if env_file.exists():
-        load_dotenv(env_file)
-        break
+from paths import DATA_JEV, ENV_FILE, CACHE
+
+if ENV_FILE.exists():
+    load_dotenv(ENV_FILE)
 EDGAR_IDENTITY = os.environ.get("EDGAR_IDENTITY", "Example user@example.com")
 ts = TypeSafeClient(api_key=os.environ["TYPESAFE_API_KEY"], timeout=90.0)
-CACHE = next((p for p in (Path("edgar_cache"), Path("../edgar_cache")) if p.exists()), Path("edgar_cache"))
 CACHE.mkdir(exist_ok=True)
 SEC_BASE, SEC_ARCHIVES = "https://data.sec.gov", "https://www.sec.gov/Archives/edgar/data"
 _lock, _last = threading.Lock(), [0.0]
@@ -158,7 +157,7 @@ t0 = time.perf_counter()
 with ThreadPoolExecutor(6) as pool:
     rows = list(pool.map(judge, jobs))
 out = pd.DataFrame(rows)
-out.to_csv("anthropic_s1_counterparty_role_passages.csv", index=False)
+out.to_csv(DATA_JEV / "counterparty_role_passages.csv", index=False)
 tok = sum(l["input_tokens"] for l in LOG)
-print(f"{len(rows)} requests, {tok:,} input tokens, ${tok * 0.042 / 1e6:.4f}, {time.perf_counter() - t0:.0f}s -> anthropic_s1_counterparty_role_passages.csv")
+print(f"{len(rows)} requests, {tok:,} input tokens, ${tok * 0.042 / 1e6:.4f}, {time.perf_counter() - t0:.0f}s -> data/jev/counterparty_role_passages.csv")
 print(out.groupby("counterparty")[list(ROLE_Q)].max().round(2))

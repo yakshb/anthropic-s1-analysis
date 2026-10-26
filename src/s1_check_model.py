@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 
 import s1_economics as E
+from paths import WEB
 
 HERE = Path(__file__).resolve().parent
 cases = []
@@ -16,7 +17,7 @@ for toggles in ({}, {"spacexai_cancel": True, "vendor_conditional": True}, {"est
         py = E.model(p, sched)
         cases.append({"p": p, "sched": list(map(float, sched)), "py": {"npv": py["npv"], "min_cash": py["min_cash"], "R": list(map(float, py["R"])), "mult": E.solve_mult(p, sched), "dem": E.solve_demand(p, sched, 5.0)}})
 js = f"""
-const M = require({json.dumps(str(HERE / 's1_model.js'))});
+const M = require({json.dumps(str(WEB / 's1_model.js'))});
 const cases = {json.dumps(cases)};
 const years = {json.dumps(E.YEARS)};
 console.log(JSON.stringify(cases.map(c => {{ const r = M.model(c.p, c.sched, years); return {{npv: r.npv, min_cash: r.min_cash, R: r.R, mult: M.solveMult(c.p, c.sched, years), dem: M.solveDemand(c.p, c.sched, years, 5.0)}}; }})).replace(/null/g, "null"));

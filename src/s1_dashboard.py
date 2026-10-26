@@ -6,8 +6,8 @@ customer concentration. Part II explains how TypeSafe's Jev was used to read the
 emphasizes. Every filing figure carries its quote; click a chart element or a table row to read the source.
 
 Writes two files: docs/index.html (a complete document; open it locally or serve it with GitHub Pages) and
-anthropic_s1_dashboard_artifact.html (the same page without the document skeleton, for publishing as a Claude artifact).
-Run from this folder:  ../.venv/bin/python s1_dashboard.py
+build/anthropic_s1_dashboard_artifact.html (the same page without the document skeleton, for publishing as a Claude artifact).
+Run from the repository root:  python src/s1_dashboard.py
 """
 import html
 import json
@@ -22,6 +22,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 
 import s1_economics as E
+from paths import BUILD, DATA_JEV, DOCS, NOTEBOOKS, WEB
 from s1_filing import filing
 
 HERE = Path(__file__).resolve().parent
@@ -46,14 +47,14 @@ for k, f in E.FACTS.items():
     src(f"fact:{k}", f.label or k, f"{f.section} · p. {f.page} · value {f.value} {f.unit}", f.quote)
 
 # =================================================================== notebook outputs (Jev disclosure analysis)
-themes = pd.read_csv(HERE / "anthropic_s1_risk_themes.csv", index_col=0)
-risks = pd.read_csv(HERE / "anthropic_s1_risk_factors.csv")
-ev = pd.read_csv(HERE / "anthropic_s1_evidence_hits.csv", index_col=0)
-fin = pd.read_csv(HERE / "anthropic_s1_financing.csv")
-commits = pd.read_csv(HERE / "anthropic_s1_vendor_commitments.csv")
-roles_counts = pd.read_csv(HERE / "anthropic_s1_counterparty_roles.csv", index_col=0)
-role_pass = pd.read_csv(HERE / "anthropic_s1_counterparty_role_passages.csv")
-manual = pd.read_csv(HERE / "anthropic_s1_manual_checks.csv")
+themes = pd.read_csv(DATA_JEV / "risk_themes.csv", index_col=0)
+risks = pd.read_csv(DATA_JEV / "risk_factors.csv")
+ev = pd.read_csv(DATA_JEV / "evidence_hits.csv", index_col=0)
+fin = pd.read_csv(DATA_JEV / "financing.csv")
+commits = pd.read_csv(DATA_JEV / "vendor_commitments.csv")
+roles_counts = pd.read_csv(DATA_JEV / "counterparty_roles.csv", index_col=0)
+role_pass = pd.read_csv(DATA_JEV / "counterparty_role_passages.csv")
+manual = pd.read_csv(DATA_JEV / "manual_checks.csv")
 manual_ok = int(manual.agrees.sum())
 THEMES = list(themes.index)
 ROLES = ["investor", "financing_source", "supplier", "lessor", "customer", "distribution_channel", "competitor"]
@@ -61,7 +62,7 @@ SECTIONS = [c for c in ["PROSPECTUS SUMMARY", "USE OF PROCEEDS", "CAPITALIZATION
                         "DESCRIPTION OF CAPITAL STOCK", "SHARES ELIGIBLE FOR FUTURE SALE", "FINANCIAL STATEMENTS", "PART II"] if c in set(ev.section)]
 
 # per-stage Jev statistics, read from the executed notebook's run-metrics table
-nb = nbformat.read(HERE / "jev_anthropic_s1.ipynb", as_version=4)
+nb = nbformat.read(NOTEBOOKS / "jev_anthropic_s1.ipynb", as_version=4)
 STAGES = []
 for c in nb.cells:
     for o in c.get("outputs", []):
@@ -409,9 +410,9 @@ def toc_html():
 findings_html = "".join(f'<a class="finding" href="#{anchor}"><span class="f-k">{esc(k)}</span><span class="f-h">{esc(h)}</span><span class="f-b">{esc(b)}</span></a>' for k, h, b, anchor in FINDINGS)
 
 # =================================================================== page
-CSS = (HERE / "s1_dashboard.css").read_text()
-JS = (HERE / "s1_dashboard.js").read_text()
-MODEL = (HERE / "s1_model.js").read_text()
+CSS = (WEB / "s1_dashboard.css").read_text()
+JS = (WEB / "s1_dashboard.js").read_text()
+MODEL = (WEB / "s1_model.js").read_text()
 dump = lambda o: json.dumps(o, default=lambda x: (None if (isinstance(x, float) and math.isnan(x)) else (x.item() if hasattr(x, "item") else str(x)))).replace("</", "<\\/").replace("NaN", "null")
 PLOTLY_CDN = "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/4.1.1/plotly.min.js"
 
@@ -635,8 +636,7 @@ BODY = f"""<title>Anthropic S-1 Economics</title>
 const SOURCES = {dump(SOURCES)};</script>
 <script>{JS}</script>
 """
-(HERE / "anthropic_s1_dashboard_artifact.html").write_text(BODY)
+(BUILD / "anthropic_s1_dashboard_artifact.html").write_text(BODY)
 FULL = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' + BODY.replace("<div class=\"page\">", "</head><body>\n<div class=\"page\">", 1) + "\n</body></html>"
-(HERE / "docs").mkdir(exist_ok=True)
-(HERE / "docs" / "index.html").write_text(FULL)
-print(f"wrote docs/index.html ({len(FULL) / 1e6:.1f} MB) and anthropic_s1_dashboard_artifact.html; {len(SOURCES)} sources, {len(E.FACTS)} facts")
+(DOCS / "index.html").write_text(FULL)
+print(f"wrote docs/index.html ({len(FULL) / 1e6:.1f} MB) and build/anthropic_s1_dashboard_artifact.html; {len(SOURCES)} sources, {len(E.FACTS)} facts")

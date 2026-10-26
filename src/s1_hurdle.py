@@ -1,4 +1,4 @@
-"""Discount rates for the reverse DCF, built from sourced inputs and cached to anthropic_s1_hurdle_inputs.csv.
+"""Discount rates for the reverse DCF, built from sourced inputs and cached to data/model/hurdle_inputs.csv.
 
 Two rates, because the two sides of the contracts carry different risk:
 * Fixed compute payments are owed regardless of usage, so they are debt-like. They are discounted at Anthropic's own
@@ -20,15 +20,16 @@ import requests
 from dotenv import load_dotenv
 
 HERE = Path(__file__).resolve().parent
-CACHE = HERE / "anthropic_s1_hurdle_inputs.csv"
+from paths import DATA_MODEL, ENV_FILE
+
+CACHE = DATA_MODEL / "hurdle_inputs.csv"
 PEERS = {"AI platforms": ["MSFT", "GOOGL", "AMZN", "META", "ORCL"], "High-growth AI software": ["PLTR", "SNOW", "NOW", "DDOG", "CRWV"]}
 TAX = 0.21
 
 
 def fetch():
-    for env in (HERE / ".env.local", HERE.parent / ".env.local"):
-        if env.exists():
-            load_dotenv(env)
+    if ENV_FILE.exists():
+        load_dotenv(ENV_FILE)
     key = os.environ["FMP_API_KEY"]
     base = "https://financialmodelingprep.com/stable"
     get = lambda path, **q: requests.get(f"{base}/{path}", params={**q, "apikey": key}, timeout=30).json()

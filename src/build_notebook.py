@@ -119,6 +119,10 @@ plt.rcParams.update({
     "xtick.color": "#898781", "ytick.color": "#898781", "axes.prop_cycle": matplotlib.cycler(color=PALETTE),
 })
 
+# Outputs go to data/jev/ when the notebook runs from the repository's notebooks/ folder, else next to the notebook (e.g. Colab).
+OUT = Path("../data/jev") if Path("../data").is_dir() else Path(".")
+OUT.mkdir(parents=True, exist_ok=True)
+
 PRICE_PER_MTOK_INPUT = 0.042
 ts = TypeSafeClient(api_key=TYPESAFE_API_KEY, timeout=90.0)
 LOG: list[dict] = []
@@ -538,7 +542,7 @@ themes["evidence_passages"] = hits.sum().reindex(themes.index).fillna(0).astype(
 themes["evidence_share"] = themes.evidence_passages / themes.evidence_passages.sum()
 by_section = pd.DataFrame({t: hits[t].groupby(ev.section).sum() for t in EV_THEMES}).T.reindex(themes.index).fillna(0).astype(int)
 by_section = by_section[[s for s in EVIDENCE_SECTIONS if s in by_section.columns]]
-ev.drop(columns="text").to_csv("anthropic_s1_evidence_hits.csv")
+ev.drop(columns="text").to_csv(OUT / "evidence_hits.csv")
 print(f"{int(hits.values.sum())} (passage, theme) evidence hits at >= {EV_T} across {int(hits.any(axis=1).sum())} passages; passages with no theme: {int((~hits.any(axis=1)).sum())}")
 display(by_section)
 
@@ -1107,15 +1111,15 @@ display(flags_df)
 print("\nmanual checks (author-read against the quoted source; the 'got' column is this run's output):")
 display(manual)
 
-risks.drop(columns=["body"]).to_csv("anthropic_s1_risk_factors.csv")
-themes.to_csv("anthropic_s1_risk_themes.csv")
-top_ev.to_csv("anthropic_s1_theme_evidence_passages.csv", index=False)
-anchors.to_csv("anthropic_s1_exposure_anchors.csv", index=False)
-risks[["theme", "words", "peer_shared", "peer_p", "heading", "peer_heading"]].to_csv("anthropic_s1_peer_matches.csv")
-fin.to_csv("anthropic_s1_financing.csv", index=False)
-commits.to_csv("anthropic_s1_vendor_commitments.csv", index=False)
-roles.to_csv("anthropic_s1_counterparty_roles.csv")
-manual.to_csv("anthropic_s1_manual_checks.csv", index=False)
+risks.drop(columns=["body"]).to_csv(OUT / "risk_factors.csv")
+themes.to_csv(OUT / "risk_themes.csv")
+top_ev.to_csv(OUT / "theme_evidence_passages.csv", index=False)
+anchors.to_csv(OUT / "exposure_anchors.csv", index=False)
+risks[["theme", "words", "peer_shared", "peer_p", "heading", "peer_heading"]].to_csv(OUT / "peer_matches.csv")
+fin.to_csv(OUT / "financing.csv", index=False)
+commits.to_csv(OUT / "vendor_commitments.csv", index=False)
+roles.to_csv(OUT / "counterparty_roles.csv")
+manual.to_csv(OUT / "manual_checks.csv", index=False)
 
 over = themes[themes.verdict.str.startswith("over")].sort_values("gap", ascending=False)
 under = themes[themes.verdict.str.startswith("under")].sort_values("gap", ascending=False)
@@ -1138,7 +1142,7 @@ generated = f'''
 * **Manual checks:** {int(manual.agrees.sum())} of {len(manual)} agree. **Review flags:** {len(flags_df)}.
 '''
 display(Markdown(re.sub(r"(?<!\\)\$", r"\\$", generated)))
-print("wrote anthropic_s1_risk_factors.csv, anthropic_s1_risk_themes.csv, anthropic_s1_evidence_hits.csv, anthropic_s1_theme_evidence_passages.csv, anthropic_s1_exposure_anchors.csv, anthropic_s1_peer_matches.csv, anthropic_s1_financing.csv, anthropic_s1_vendor_commitments.csv, anthropic_s1_counterparty_roles.csv, anthropic_s1_manual_checks.csv")
+print("wrote risk_factors.csv, risk_themes.csv, evidence_hits.csv, theme_evidence_passages.csv, exposure_anchors.csv, peer_matches.csv, financing.csv, vendor_commitments.csv, counterparty_roles.csv, manual_checks.csv")
 """)
 
 md(r"""
@@ -1221,6 +1225,6 @@ the next primary source.
 
 nb["cells"] = cells
 nb["metadata"]["kernelspec"] = {"name": "python3", "display_name": "Python 3", "language": "python"}
-out = Path(__file__).resolve().parent / "jev_anthropic_s1.ipynb"
+out = Path(__file__).resolve().parents[1] / "notebooks" / "jev_anthropic_s1.ipynb"
 nbf.write(nb, out)
 print("wrote", out, "with", len(cells), "cells")

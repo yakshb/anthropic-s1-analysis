@@ -19,7 +19,7 @@ import warnings
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 HERE = Path(__file__).resolve().parent
-CACHE = next((p for p in (HERE / "edgar_cache", HERE.parent / "edgar_cache") if p.exists()), HERE / "edgar_cache")  # created inside the repo on first run
+from paths import CACHE  # noqa: E402
 SEC_BASE, SEC_ARCHIVES = "https://data.sec.gov", "https://www.sec.gov/Archives/edgar/data"
 CIK = "2130357"
 _lock, _last = threading.Lock(), [0.0]

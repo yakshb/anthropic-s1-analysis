@@ -21,81 +21,84 @@ Every figure in the report links to the sentence in the filing that states it.
 ## What is in this repository
 
 ```
-docs/index.html                     the interactive report (self-contained; loads plotly.js from cdnjs)
-jev_anthropic_s1.ipynb              notebook: Jev's reading of the filing (risk factors, evidence, peers, agreements, roles)
-jev_anthropic_s1_colab.ipynb        the same notebook for Google Colab (outputs cleared)
-build_anthropic_s1_notebook.py      generates the notebook
-
-s1_filing.py                        fetches and parses the S-1; every figure is returned with its quote and page
-s1_economics.py                     margin bridge, compute efficiency, contract ledger, payment calendar, reverse DCF
-s1_hurdle.py                        discount-rate inputs (Treasury, equity risk premium, peer betas); cached to CSV
-s1_model.js                         the reverse-DCF model in JavaScript, used by the report's controls
-s1_check_model.py                   checks the JavaScript model against the Python model
-s1_role_passages.py                 a small Jev pass behind the counterparty role map
-s1_dashboard.py / .js / .css        build the report
-
-anthropic_s1_*.csv                  every dataset behind the report (see below)
+docs/index.html            the interactive report, served by GitHub Pages
+data/model/                figures extracted from the filing and the outputs of the economic model
+data/jev/                  Jev's reading of the filing: risk factors, evidence, peers, agreements, roles
+notebooks/                 the Jev notebook (jev_anthropic_s1.ipynb) and its Colab copy
+src/                       Python: filing parser, economics, discount rates, report builder, checks
+web/                       the report's stylesheet and scripts, including the JavaScript model
 ```
+
+| `src/` | Does |
+|---|---|
+| `paths.py` | Every folder the project reads or writes; scripts run from any directory |
+| `s1_filing.py` | Fetches and parses the S-1; every figure is returned with its quote and page |
+| `s1_economics.py` | Margin bridge, compute efficiency, contract ledger, payment calendar, reverse DCF; writes `data/model/` |
+| `s1_hurdle.py` | Discount-rate inputs (Treasury, equity risk premium, peer betas), cached to `data/model/hurdle_inputs.csv` |
+| `s1_dashboard.py` | Builds `docs/index.html` from `data/`, `web/` and the notebook |
+| `s1_check_model.py` | Checks `web/s1_model.js` against the Python model (needs Node.js) |
+| `s1_role_passages.py` | A small Jev pass behind the counterparty role map; writes `data/jev/counterparty_role_passages.csv` |
+| `build_notebook.py` | Generates `notebooks/jev_anthropic_s1.ipynb` |
 
 ### Datasets
 
 | File | Contents |
 |---|---|
-| `anthropic_s1_filing_facts.csv` | Every figure extracted from the filing, with its unit, section, page and quote |
-| `anthropic_s1_margin_bridge.csv` | Revenue to operating income by period, with serving and non-serving compute bounds |
-| `anthropic_s1_quarterly_efficiency.csv` | Quarterly revenue, compute expense and efficiency ratios |
-| `anthropic_s1_contract_ledger.csv`, `_ledger_reconciliation.csv`, `_payment_calendar.csv` | The reconciled commitments, the checks on them, and the payment schedule |
-| `anthropic_s1_utilization_scenarios.csv`, `_model_assumptions.csv`, `_hurdle_inputs.csv` | Reverse-DCF scenarios, every assumption with its reason, and the discount-rate inputs |
-| `anthropic_s1_risk_factors.csv`, `_risk_themes.csv`, `_evidence_hits.csv`, `_theme_evidence_passages.csv`, `_peer_matches.csv` | Jev's typing of the 88 risk factors, the words-versus-facts index, and the evidence behind it |
-| `anthropic_s1_financing.csv`, `_vendor_commitments.csv`, `_counterparty_roles.csv`, `_counterparty_role_passages.csv` | Jev's reading of financing instruments, compute agreements and counterparty roles |
-| `anthropic_s1_manual_checks.csv` | Author-read checks against the filing |
+| `data/model/filing_facts.csv` | Every figure extracted from the filing, with its unit, section, page and quote |
+| `data/model/margin_bridge.csv` | Revenue to operating income by period, with serving and non-serving compute bounds |
+| `data/model/quarterly_efficiency.csv` | Quarterly revenue, compute expense and efficiency ratios |
+| `data/model/contract_ledger.csv`, `ledger_reconciliation.csv`, `payment_calendar.csv` | The reconciled commitments, the checks on them, and the payment schedule |
+| `data/model/utilization_scenarios.csv`, `model_assumptions.csv`, `hurdle_inputs.csv` | Reverse-DCF scenarios, every assumption with its reason, and the discount-rate inputs |
+| `data/jev/risk_factors.csv`, `risk_themes.csv`, `evidence_hits.csv`, `theme_evidence_passages.csv`, `peer_matches.csv` | Jev's typing of the 88 risk factors, the words-versus-facts index, and the evidence behind it |
+| `data/jev/financing.csv`, `vendor_commitments.csv`, `counterparty_roles.csv`, `counterparty_role_passages.csv` | Jev's reading of financing instruments, compute agreements and counterparty roles |
+| `data/jev/manual_checks.csv` | Author-read checks against the filing |
 
 ## Working with the files
 
 **Just reading:** open `docs/index.html` in a browser (an internet connection is needed for fonts and plotly.js). Click any chart element or table row to read its source.
 
-**Rebuilding the report** (no API keys needed):
+**Rebuilding the report** (no API keys needed). Run from the repository root:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env.local        # set EDGAR_IDENTITY; keys are optional for this step
-.venv/bin/python s1_economics.py  # extracts figures, runs the model, writes the CSVs
-.venv/bin/python s1_check_model.py   # optional; needs Node.js
-.venv/bin/python s1_dashboard.py  # writes docs/index.html
+cp .env.example .env.local            # set EDGAR_IDENTITY; keys are optional for this step
+.venv/bin/python src/s1_economics.py  # extracts figures, runs the model, writes data/model/
+.venv/bin/python src/s1_check_model.py   # optional; needs Node.js
+.venv/bin/python src/s1_dashboard.py  # writes docs/index.html
 ```
 
 The first run downloads the S-1 from SEC EDGAR into `edgar_cache/`, which is git-ignored. Later runs read the cache.
 
-**Refreshing market inputs:** set `FMP_API_KEY` in `.env.local`, then run `.venv/bin/python s1_hurdle.py --refresh` before `s1_economics.py`.
+**Refreshing market inputs:** set `FMP_API_KEY` in `.env.local`, then run `.venv/bin/python src/s1_hurdle.py --refresh` before `src/s1_economics.py`.
 
-**Re-running the Jev analysis:** set `TYPESAFE_API_KEY` in `.env.local`, then open `jev_anthropic_s1.ipynb` in Jupyter. Or run it headless:
+**Re-running the Jev analysis:** set `TYPESAFE_API_KEY` in `.env.local`, then open `notebooks/jev_anthropic_s1.ipynb` in Jupyter. It writes to `data/jev/`. Or run it headless:
 
 ```bash
-.venv/bin/jupyter nbconvert --to notebook --execute --inplace jev_anthropic_s1.ipynb
+cd notebooks && ../.venv/bin/jupyter nbconvert --to notebook --execute --inplace jev_anthropic_s1.ipynb
 ```
 
-A full run makes about 1,100 requests to TypeSafe's Jev (about 13,000 judgments, roughly $0.11). In Colab, add `TYPESAFE_API_KEY` under Secrets and run `jev_anthropic_s1_colab.ipynb`.
+A full run makes about 1,100 requests to TypeSafe's Jev (about 13,000 judgments, roughly $0.11). In Colab, add `TYPESAFE_API_KEY` under Secrets and run `notebooks/jev_anthropic_s1_colab.ipynb`. In Colab its outputs land next to the notebook.
 
 ## Method in brief
 
 - **Figures** are extracted from the filing by pattern-matching, and each keeps the sentence and page that state it. All arithmetic is in code.
 - **Judgments that need reading** are made by TypeSafe's Jev. These cover which theme a passage supports, how an agreement can be cancelled, and which role a counterparty plays. Jev returns typed answers with probabilities, so every threshold and count can be inspected and re-run.
 - **The reverse DCF** treats compute payments as debt-like and discounts them at the filing's own lease rate. Revenue is discounted at an unlevered cost of capital built from listed peers. The model solves for the demand growth and the price-efficiency at which NPV reaches zero.
-- **Limitations** are listed in the report's Appendix A. In particular, the filing gives no physical capacity units, leaves its own aggregate commitment figures blank, and does not split training compute from other R&D. Assumptions are listed in Appendix B and `anthropic_s1_model_assumptions.csv`.
+- **Limitations** are listed in the report's Appendix A. In particular, the filing gives no physical capacity units, leaves its own aggregate commitment figures blank, and does not split training compute from other R&D. Assumptions are listed in Appendix B and `data/model/model_assumptions.csv`.
 
 ## Publishing the report
 
-`docs/index.html` is served by GitHub Pages from `main` / `/docs` at https://yakshb.github.io/anthropic-s1-analysis/. Every push to `main` republishes it, so rebuild with `s1_dashboard.py` before pushing.
+`docs/index.html` is served by GitHub Pages from `main` / `/docs` at https://yakshb.github.io/anthropic-s1-analysis/. Every push to `main` republishes it, so rebuild with `src/s1_dashboard.py` before pushing.
 
 ## Contributing
 
 Corrections and extensions are welcome.
 
-- **Found a wrong figure?** Open an issue with the figure, the page of the S-1, and the sentence that states it. Every extracted value is in `anthropic_s1_filing_facts.csv` with its quote.
-- **Changing the model?** Keep `s1_model.js` and `model()` in `s1_economics.py` in step, and run `s1_check_model.py` before opening a pull request.
-- **Changing assumptions?** Add or edit them in `ASSUMPTIONS` in `s1_economics.py` with a one-line reason. They flow into the report's appendix automatically.
+- **Found a wrong figure?** Open an issue with the figure, the page of the S-1, and the sentence that states it. Every extracted value is in `data/model/filing_facts.csv` with its quote.
+- **Changing the model?** Keep `web/s1_model.js` and `model()` in `src/s1_economics.py` in step, and run `src/s1_check_model.py` before opening a pull request.
+- **Changing assumptions?** Add or edit them in `ASSUMPTIONS` in `src/s1_economics.py` with a one-line reason. They flow into the report's appendix automatically.
 - **Never commit keys.** `.env.local` and every other `.env*` file except `.env.example` are git-ignored.
-- After any change, rebuild with `s1_economics.py` and `s1_dashboard.py` so `docs/index.html` and the CSVs stay in sync with the code.
+- After any change, rebuild with `src/s1_economics.py` and `src/s1_dashboard.py` so `docs/index.html` and `data/` stay in sync with the code.
 
 ## License
 
